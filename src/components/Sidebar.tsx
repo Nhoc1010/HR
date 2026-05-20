@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
-  CreditCard
+  CreditCard,
+  LogOut
 } from "lucide-react";
 
 import { Employee } from "../types";
@@ -27,6 +28,7 @@ interface SidebarProps {
   setCollapsed: (collapsed: boolean) => void;
   currentAdmin?: Employee;
   onProfileClick?: () => void;
+  onLogout?: () => void;
 }
 
 const getInitials = (name: string): string => {
@@ -42,7 +44,7 @@ const getInitials = (name: string): string => {
   return name.slice(0, 2).toUpperCase();
 };
 
-export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, currentAdmin, onProfileClick }: SidebarProps) {
+export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, currentAdmin, onProfileClick, onLogout }: SidebarProps) {
   const menuItems = [
     { id: "dashboard", label: "Tổng quan HRM", icon: Gauge },
     { id: "employees", label: "Nhân viên", icon: Users },
@@ -146,7 +148,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
       </div>
 
       {/* System Status indicator and Profile Profile footer */}
-      <div className="px-3 space-y-4">
+      <div className="px-3 space-y-3">
         {!collapsed && (
           <div className="p-4 mx-1 rounded-xl bg-white/5 border border-white/5">
             <div className="flex items-center gap-2 mb-1.5">
@@ -157,22 +159,34 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
           </div>
         )}
 
-        <div 
-          onClick={onProfileClick}
-          className={`p-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-[0.98] border border-white/5 hover:border-violet-500/20 flex items-center cursor-pointer transition-all ${collapsed ? "justify-center" : "space-x-3"}`}
-          title="Nhấp để thay đổi danh tính quản trị viên"
-        >
-          <div className="relative">
-            <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center font-display font-medium text-white text-xs ring-2 ring-indigo-500/20 transition-all">
-              {currentAdmin ? getInitials(currentAdmin.name) : "LA"}
+        <div className={`flex ${collapsed ? "flex-col items-center gap-2" : "gap-2 items-center min-w-0"}`}>
+          <div 
+            onClick={onProfileClick}
+            className={`p-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-[0.98] border border-white/5 hover:border-violet-500/20 flex flex-1 items-center cursor-pointer transition-all min-w-0 ${collapsed ? "justify-center w-12 h-12 p-0 rounded-full" : "space-x-3"}`}
+            title="Nhấp để thay đổi danh tính quản trị viên"
+          >
+            <div className="relative shrink-0">
+              <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center font-display font-medium text-white text-xs ring-2 ring-indigo-500/20 transition-all">
+                {currentAdmin ? getInitials(currentAdmin.name) : "LA"}
+              </div>
+              <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-950" />
             </div>
-            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-950" />
+            {!collapsed && (
+              <div className="overflow-hidden min-w-0">
+                <h2 className="text-xs font-semibold text-white truncate">{currentAdmin?.name || "Phạm Thị Lan Anh"}</h2>
+                <p className="text-[10px] text-white/40 truncate">{currentAdmin?.position || "Giám đốc nhân sự (HRM)"}</p>
+              </div>
+            )}
           </div>
-          {!collapsed && (
-            <div className="overflow-hidden">
-              <h2 className="text-xs font-semibold text-white truncate">{currentAdmin?.name || "Phạm Thị Lan Anh"}</h2>
-              <p className="text-[10px] text-white/40 truncate">{currentAdmin?.position || "Giám đốc nhân sự (HRM)"}</p>
-            </div>
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              title="Đăng xuất khỏi hệ thống"
+              className={`rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/15 hover:border-rose-500/30 flex items-center justify-center cursor-pointer transition-all active:scale-95 shrink-0 ${collapsed ? "w-11 h-11" : "p-3.5"}`}
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           )}
         </div>
       </div>

@@ -15,6 +15,7 @@ import Tasks from "./components/Tasks";
 import Recruitment from "./components/Recruitment";
 import Contracts from "./components/Contracts";
 import Payroll from "./components/Payroll";
+import Login from "./components/Login";
 import { 
   initialEmployees, 
   initialAttendance, 
@@ -40,6 +41,9 @@ const getInitials = (name: string): string => {
 };
 
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return sessionStorage.getItem("hrm_prefix_is_logged_in") === "true";
+  });
   const [activeTab, setActiveTab] = useState("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   
@@ -53,8 +57,23 @@ export default function App() {
   const [payroll, setPayroll] = useState<PayrollType[]>(initialPayroll);
 
   // Active Admin Session State
-  const [currentAdminId, setCurrentAdminId] = useState("emp04"); // Default: Phạm Thị Lan Anh
+  const [currentAdminId, setCurrentAdminId] = useState(() => {
+    return sessionStorage.getItem("hrm_prefix_admin_id") || "emp04"; // Default: Phạm Thị Lan Anh
+  });
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const handleLoginSuccess = (adminId: string) => {
+    setCurrentAdminId(adminId);
+    setIsLoggedIn(true);
+    sessionStorage.setItem("hrm_prefix_is_logged_in", "true");
+    sessionStorage.setItem("hrm_prefix_admin_id", adminId);
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    sessionStorage.removeItem("hrm_prefix_is_logged_in");
+    sessionStorage.removeItem("hrm_prefix_admin_id");
+  };
 
   const currentAdmin = employees.find(e => e.id === currentAdminId) || employees[0];
 
@@ -157,6 +176,10 @@ export default function App() {
     }
   };
 
+  if (!isLoggedIn) {
+    return <Login employees={employees} onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-[#0F1115] to-[#0A0B10] font-sans antialiased text-[#F8FAFC] overflow-hidden relative">
       {/* Absolute high-tech glowing backgrounds */}
@@ -171,6 +194,7 @@ export default function App() {
         setCollapsed={setCollapsed} 
         currentAdmin={currentAdmin}
         onProfileClick={() => setIsProfileModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Hub */}
