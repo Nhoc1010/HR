@@ -57,7 +57,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
                 <h1 className="text-base font-display font-bold text-white tracking-tight flex items-baseline">
                   HRM <span className="text-violet-400 ml-1">Pro</span>
                 </h1>
-                <p className="text-[10px] text-white/40 font-mono">Quản lý nhân sự v2.0</p>
+                <p className="text-[10px] text-white/40 font-mono">Quản lý nhân sự v2.1</p>
               </div>
             </motion.div>
           )}
@@ -122,10 +122,10 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
         {!collapsed && (
           <div className="p-4 mx-1 rounded-xl bg-white/5 border border-white/5">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="status-dot bg-green-500 glow-blue" />
+              <span className="status-dot bg-emerald-500 glow-blue animate-pulse" />
               <span className="text-[10px] text-white/50 uppercase font-bold tracking-wider">Trạng thái Hệ thống</span>
             </div>
-            <p className="text-[9px] text-white/30 truncate font-mono">SYS-ONLINE // CLOUD-v2.0</p>
+            <p className="text-[10px] text-emerald-400 font-bold font-mono">ONLINE // UPDATE - V 2.1 A.P</p>
           </div>
         )}
 

@@ -461,146 +461,177 @@ export default function Payroll({
       </div>
 
       {/* Main Payslip Table */}
-      <div className="glass-panel rounded-2xl border border-white/5 overflow-hidden">
+      <div className="rounded-2xl border border-white/[0.08] bg-slate-950/65 backdrop-blur-xl shadow-2xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-white/80">
-            <thead className="bg-white/5 text-white/50 uppercase tracking-wider font-mono text-[10px] border-b border-white/5">
+          <table className="w-full text-left text-xs text-white/80 border-collapse">
+            <thead className="bg-[#0b0c12]/90 text-white/40 uppercase tracking-widest font-mono text-[9px] border-b border-white/10">
               <tr>
-                <th className="px-6 py-4">Nhân viên / Chu kỳ</th>
-                <th className="px-5 py-4 text-right">Lương cơ bản ({viewMode === "yearly" ? "năm" : "tháng"})</th>
-                <th className="px-4 py-4 text-center">Ngày công {viewMode === "yearly" ? "(ước tính/năm)" : "(Công chuẩn 22)"}</th>
-                <th className="px-4 py-4 text-center">Tăng ca {viewMode === "yearly" ? "(năm)" : "(H)"}</th>
-                <th className="px-4 py-4 text-right">Phụ cấp + OT ({viewMode === "yearly" ? "năm" : "tháng"})</th>
-                <th className="px-4 py-4 text-right">Khấu trừ ({viewMode === "yearly" ? "năm" : "tháng"})</th>
-                <th className="px-4 py-4 text-right">Tạm ứng ({viewMode === "yearly" ? "năm" : "tháng"})</th>
-                <th className="px-6 py-4 text-right font-bold text-violet-300">Thực lĩnh ({viewMode === "yearly" ? "Dự toán hằng năm" : "tháng"})</th>
-                <th className="px-6 py-4 text-center">Trạng thái</th>
-                <th className="px-6 py-4 text-center">Thao tác</th>
+                <th className="px-6 py-4.5 font-bold">Nhân viên / Chu kỳ</th>
+                <th className="px-5 py-4.5 text-right font-bold">Lương cơ bản ({viewMode === "yearly" ? "năm" : "tháng"})</th>
+                <th className="px-4 py-4.5 text-center font-bold">Ngày công {viewMode === "yearly" ? "(năm)" : "(Chuển 22)"}</th>
+                <th className="px-4 py-4.5 text-center font-bold">Tăng ca {viewMode === "yearly" ? "(năm)" : "(Giờ)"}</th>
+                <th className="px-4 py-4.5 text-right font-bold">Phụ cấp & OT ({viewMode === "yearly" ? "năm" : "tháng"})</th>
+                <th className="px-4 py-4.5 text-right font-bold">Khấu trừ ({viewMode === "yearly" ? "năm" : "tháng"})</th>
+                <th className="px-4 py-4.5 text-right font-bold">Tạm ứng ({viewMode === "yearly" ? "năm" : "tháng"})</th>
+                <th className="px-6 py-4.5 text-right font-extrabold text-violet-300 bg-violet-950/10">Thực lĩnh ({viewMode === "yearly" ? "Dự toán" : "tháng"})</th>
+                <th className="px-6 py-4.5 text-center font-bold">Trạng thái</th>
+                <th className="px-6 py-4.5 text-center font-bold">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
-              {filteredPayroll.map((pay) => (
-                <tr key={pay.id} className="hover:bg-white/2 transition-colors">
-                  <td className="px-6 py-4">
-                    <p className="font-bold text-white">{pay.employeeName}</p>
-                    <span className="text-[10px] text-white/30 font-mono italic">
-                      {viewMode === "yearly" ? "Mô phỏng 12 tháng liên tiếp" : pay.month}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 text-right font-mono text-white/70">
-                    {(pay.basicSalary * factor).toLocaleString()}đ
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    {viewMode === "yearly" ? (
-                      <span className="font-mono font-bold text-violet-400">{pay.workDays * 12} ngày</span>
-                    ) : (
-                      <div className="inline-flex items-center space-x-1 border border-white/5 bg-slate-950/40 p-1 rounded-lg">
-                        <button
-                          onClick={() => handleUpdateWorkDays(pay.id, pay.workDays - 1)}
-                          disabled={pay.status === "Đã thanh toán" || pay.workDays <= 0}
-                          className="w-5 h-5 bg-white/5 hover:bg-white/10 text-white rounded flex items-center justify-center font-mono text-xs cursor-pointer disabled:opacity-30 disabled:pointer-events-none duration-100"
-                        >
-                          -
-                        </button>
-                        <span className="text-violet-400 font-bold font-mono text-xs w-6 text-center">{pay.workDays}</span>
-                        <button
-                          onClick={() => handleUpdateWorkDays(pay.id, pay.workDays + 1)}
-                          disabled={pay.status === "Đã thanh toán" || pay.workDays >= 31}
-                          className="w-5 h-5 bg-white/5 hover:bg-white/10 text-white rounded flex items-center justify-center font-mono text-xs cursor-pointer disabled:opacity-30 disabled:pointer-events-none duration-100"
-                        >
-                          +
-                        </button>
+            <tbody className="divide-y divide-white/[0.04]">
+              {filteredPayroll.map((pay) => {
+                // Generate a beautiful colorful avatar initial for the employee
+                const nameInitials = pay.employeeName
+                  ? pay.employeeName.split(" ").slice(-2).map(n => n ? n[0] : "").join("")
+                  : "NV";
+                
+                return (
+                  <tr key={pay.id} className="hover:bg-violet-600/[0.03] transition-all duration-150 group">
+                    <td className="px-6 py-5.5">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600/30 to-fuchsia-600/30 border border-violet-500/20 flex items-center justify-center font-bold text-violet-300 text-xs shadow-inner">
+                          {nameInitials}
+                        </div>
+                        <div>
+                          <p className="font-bold text-white group-hover:text-violet-400 transition-colors duration-150 text-xs">
+                            {pay.employeeName}
+                          </p>
+                          <span className="text-[10px] text-white/35 font-mono">
+                            {viewMode === "yearly" ? "Mô phỏng 12 tháng" : pay.month}
+                          </span>
+                        </div>
                       </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    {viewMode === "yearly" ? (
-                      <span className="font-mono text-white/55">{pay.overtimeHours > 0 ? `+${pay.overtimeHours * 12}h` : "-"}</span>
-                    ) : (
-                      <div className="inline-flex items-center space-x-1 border border-white/5 bg-slate-950/40 p-1 rounded-lg">
-                        <button
-                          onClick={() => handleUpdateOvertime(pay.id, Math.max(0, pay.overtimeHours - 1))}
-                          disabled={pay.status === "Đã thanh toán" || pay.overtimeHours <= 0}
-                          className="w-5 h-5 bg-white/5 hover:bg-white/10 text-white rounded flex items-center justify-center font-mono text-xs cursor-pointer disabled:opacity-30 disabled:pointer-events-none duration-100"
-                        >
-                          -
-                        </button>
-                        <span className="text-white/70 font-mono text-xs w-6 text-center">{pay.overtimeHours}h</span>
-                        <button
-                          onClick={() => handleUpdateOvertime(pay.id, pay.overtimeHours + 1)}
-                          disabled={pay.status === "Đã thanh toán"}
-                          className="w-5 h-5 bg-white/5 hover:bg-white/10 text-white rounded flex items-center justify-center font-mono text-xs cursor-pointer disabled:opacity-30 duration-100"
-                        >
-                          +
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-4 text-right font-mono text-emerald-400">
-                    +{((pay.allowance + pay.overtimeHours * 200000) * factor).toLocaleString()}đ
-                  </td>
-                  <td className="px-4 py-4 text-right font-mono text-rose-500">
-                    -{(pay.deductions * factor).toLocaleString()}đ
-                  </td>
-                  <td className="px-4 py-4 text-right font-mono">
-                    {pay.advance > 0 ? (
-                      <span className="text-amber-400">-{(pay.advance * factor).toLocaleString()}đ</span>
-                    ) : (
-                      <span className="text-white/30">-</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right font-mono text-white font-extrabold text-sm">
-                    {(pay.netSalary * factor).toLocaleString()}đ
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      pay.status === "Đã thanh toán"
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : pay.status === "Chờ duyệt"
-                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                          : "bg-white/5 text-white/40 border border-white/5"
-                    }`}>
-                      {pay.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => setSelectedPay(pay)}
-                        className="p-1 px-2 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-all flex items-center gap-1 cursor-pointer"
-                        title="In phiếu lương"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>Phiếu</span>
-                      </button>
-
-                      {pay.status !== "Đã thanh toán" && (
-                        <>
+                    </td>
+                    <td className="px-5 py-5.5 text-right font-mono text-white/70">
+                      {(pay.basicSalary * factor).toLocaleString()}đ
+                    </td>
+                    <td className="px-4 py-5.5 text-center">
+                      {viewMode === "yearly" ? (
+                        <span className="font-mono font-bold text-violet-400 bg-violet-450/10 border border-violet-500/15 py-1 px-2.5 rounded-lg">
+                          {pay.workDays * 12} ngày
+                        </span>
+                      ) : (
+                        <div className="inline-flex items-center space-x-1 border border-white/5 bg-slate-950/50 p-1 rounded-lg">
                           <button
-                            onClick={() => setAdvancingPay(pay)}
-                            className="p-1 px-2 border border-amber-500/30 text-amber-500 hover:bg-amber-500/20 rounded-lg text-xs cursor-pointer transition-all"
-                            title="Tạm ứng tiền"
+                            onClick={() => handleUpdateWorkDays(pay.id, pay.workDays - 1)}
+                            disabled={pay.status === "Đã thanh toán" || pay.workDays <= 0}
+                            className="w-5 h-5 bg-white/5 hover:bg-white/10 text-white rounded-md flex items-center justify-center font-mono text-xs cursor-pointer disabled:opacity-20 disabled:pointer-events-none duration-100"
                           >
-                            T.Ứ
+                            -
                           </button>
-                          
+                          <span className="text-violet-400 font-bold font-mono text-xs w-6 text-center">{pay.workDays}</span>
                           <button
-                            onClick={() => handleApprovePayroll(pay.id)}
-                            className="p-1 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all"
-                            title="Thanh toán lương"
+                            onClick={() => handleUpdateWorkDays(pay.id, pay.workDays + 1)}
+                            disabled={pay.status === "Đã thanh toán" || pay.workDays >= 31}
+                            className="w-5 h-5 bg-white/5 hover:bg-white/10 text-white rounded-md flex items-center justify-center font-mono text-xs cursor-pointer disabled:opacity-20 disabled:pointer-events-none duration-100"
                           >
-                            Chi
+                            +
                           </button>
-                        </>
+                        </div>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-5.5 text-center">
+                      {viewMode === "yearly" ? (
+                        <span className="font-mono text-white/50 bg-white/3 border border-white/5 py-1 px-2 rounded-lg">
+                          {pay.overtimeHours > 0 ? `+${pay.overtimeHours * 12}h` : "-"}
+                        </span>
+                      ) : (
+                        <div className="inline-flex items-center space-x-1 border border-white/5 bg-slate-950/50 p-1 rounded-lg">
+                          <button
+                            onClick={() => handleUpdateOvertime(pay.id, Math.max(0, pay.overtimeHours - 1))}
+                            disabled={pay.status === "Đã thanh toán" || pay.overtimeHours <= 0}
+                            className="w-5 h-5 bg-white/5 hover:bg-white/10 text-white rounded-md flex items-center justify-center font-mono text-xs cursor-pointer disabled:opacity-20 disabled:pointer-events-none duration-100"
+                          >
+                            -
+                          </button>
+                          <span className="text-white/70 font-mono text-xs w-6 text-center">{pay.overtimeHours}h</span>
+                          <button
+                            onClick={() => handleUpdateOvertime(pay.id, pay.overtimeHours + 1)}
+                            disabled={pay.status === "Đã thanh toán"}
+                            className="w-5 h-5 bg-white/5 hover:bg-white/10 text-white rounded-md flex items-center justify-center font-mono text-xs cursor-pointer disabled:opacity-20 duration-100"
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-5.5 text-right font-mono">
+                      <span className="inline-block bg-emerald-500/5 text-emerald-400 border border-emerald-500/10 px-2.5 py-1 rounded-lg text-[11px] font-semibold">
+                        +{((pay.allowance + pay.overtimeHours * 200000) * factor).toLocaleString()}đ
+                      </span>
+                    </td>
+                    <td className="px-4 py-5.5 text-right font-mono">
+                      <span className="inline-block bg-rose-500/5 text-rose-400 border border-rose-500/10 px-2.5 py-1 rounded-lg text-[11px]">
+                        -{(pay.deductions * factor).toLocaleString()}đ
+                      </span>
+                    </td>
+                    <td className="px-4 py-5.5 text-right font-mono">
+                      {pay.advance > 0 ? (
+                        <span className="inline-block bg-amber-500/5 text-amber-400 border border-amber-500/10 px-2.5 py-1 rounded-lg text-[11px]">
+                          -{(pay.advance * factor).toLocaleString()}đ
+                        </span>
+                      ) : (
+                        <span className="text-white/20">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-5.5 text-right font-mono bg-violet-950/10 border-x border-violet-500/5">
+                      <span className="text-violet-300 font-extrabold text-[13px] bg-violet-500/10 border border-violet-500/15 py-1.5 px-3 rounded-xl shadow-inner">
+                        {(pay.netSalary * factor).toLocaleString()}đ
+                      </span>
+                    </td>
+                    <td className="px-6 py-5.5 text-center">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold ${
+                        pay.status === "Đã thanh toán"
+                          ? "bg-emerald-500/8 text-emerald-300 border border-emerald-500/20"
+                          : pay.status === "Chờ duyệt"
+                            ? "bg-amber-500/8 text-amber-300 border border-amber-500/20 animate-pulse"
+                            : "bg-white/5 text-white/40 border border-white/5"
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          pay.status === "Đã thanh toán" ? "bg-emerald-400" : pay.status === "Chờ duyệt" ? "bg-amber-400" : "bg-white/30"
+                        }`} />
+                        {pay.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5.5 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => setSelectedPay(pay)}
+                          className="px-2.5 py-1.5 bg-white/5 hover:bg-violet-600 border border-transparent hover:border-violet-500/30 rounded-xl text-white/70 hover:text-white transition-all duration-150 flex items-center gap-1 text-[11px] font-semibold cursor-pointer active:scale-95"
+                          title="In phiếu lương"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Phiếu</span>
+                        </button>
+
+                        {pay.status !== "Đã thanh toán" && (
+                          <>
+                            <button
+                              onClick={() => setAdvancingPay(pay)}
+                              className="px-2.5 py-1.5 border border-amber-500/25 text-amber-500 hover:bg-amber-500/15 hover:text-amber-300 rounded-xl text-[11px] font-semibold cursor-pointer transition-all active:scale-95 duration-100"
+                              title="Tạm ứng tiền"
+                            >
+                              T.Ứ
+                            </button>
+                            
+                            <button
+                              onClick={() => handleApprovePayroll(pay.id)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[11px] font-black cursor-pointer transition-all duration-150 shadow-md shadow-emerald-950/20 active:scale-95"
+                              title="Thanh toán lương"
+                            >
+                              Chi
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
               
               {filteredPayroll.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-white/30 font-mono">
+                  <td colSpan={10} className="text-center py-16 text-white/30 font-mono">
                     <HelpCircle className="w-8 h-8 text-white/10 mx-auto mb-2" />
                     Không tìm thấy thông tin lương phù hợp
                   </td>
@@ -700,7 +731,7 @@ export default function Payroll({
                     </div>
                     <div>
                       <h3 className="font-bold text-white text-sm font-sans">PHIẾU LƯƠNG ĐIỆN TỬ</h3>
-                      <p className="text-[9px] font-mono text-white/40">NEXUS v2.0 // PAYROLL RECEPT</p>
+                      <p className="text-[9px] font-mono text-white/40">NEXUS v2.1 // PAYROLL RECEPT</p>
                     </div>
                   </div>
                   <button
