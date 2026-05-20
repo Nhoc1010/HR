@@ -18,21 +18,32 @@ const PORT = 3000;
 // Enable JSON parsing
 app.use(express.json());
 
-// Initialize Gemini API
-const apiKey = process.env.GEMINI_API_KEY || "AIzaSyAhkveS-nCcISBVI1DeGXPqK_-1bBL3Ou0";
-const ai = new GoogleGenAI({
-  apiKey: apiKey,
-  httpOptions: {
-    headers: {
-      "User-Agent": "aistudio-build",
-    },
-  },
-});
+// Initialize Gemini API with lazy initialization for enhanced security
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI(): GoogleGenAI {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Không tìm thấy cấu hình GEMINI_API_KEY trong biến môi trường. Vui lòng thiết lập khóa API trong phần cài đặt.");
+  }
+  if (!aiInstance) {
+    aiInstance = new GoogleGenAI({
+      apiKey: apiKey,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
+      },
+    });
+  }
+  return aiInstance;
+}
 
 // AI endpoints
 // 1. General HRM assistant chat
 app.post("/api/chat", async (req, res) => {
   try {
+    const ai = getAI();
     const { message, chatHistory } = req.body;
     
     // Format history for the model
@@ -70,6 +81,7 @@ Hãy trả lời ngắn gọn, súc tích, chuyên nghiệp bằng tiếng Việ
 // 2. Draft labor contract
 app.post("/api/draft-contract", async (req, res) => {
   try {
+    const ai = getAI();
     const { employee, contract } = req.body;
     const prompt = `Hãy soạn thảo một HỢP ĐỒNG LAO ĐỘNG chi tiết, chuyên nghiệp và đúng luật lao động Việt Nam dựa trên các thông tin sau:
 - Tên nhân viên: ${employee.name} (${employee.gender === "Nam" ? "Ông" : "Bà"})
@@ -107,6 +119,7 @@ Yêu cầu hợp đồng:
 // 3. Evaluate CV & Candidate
 app.post("/api/analyze-candidate", async (req, res) => {
   try {
+    const ai = getAI();
     const { candidate } = req.body;
     const prompt = `Hãy đóng vai trò là một chuyên gia tuyển dụng cao cấp. Phân tích và đưa ra đánh giá, phê duyệt cho ứng viên sau:
 - Tên ứng viên: ${candidate.name}
