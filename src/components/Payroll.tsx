@@ -44,6 +44,9 @@ export default function Payroll({
   const [selectedPay, setSelectedPay] = useState<PayrollType | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("Tất cả");
+  const [viewMode, setViewMode] = useState<"monthly" | "yearly">("monthly");
+
+  const factor = viewMode === "yearly" ? 12 : 1;
 
   // Advance modal form
   const [advancingPay, setAdvancingPay] = useState<PayrollType | null>(null);
@@ -191,9 +194,13 @@ export default function Payroll({
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         <div className="card-3d p-6 rounded-2xl flex items-start justify-between">
           <div className="space-y-2">
-            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Tổng quỹ lương {selectedMonth}</span>
-            <p className="text-2xl font-mono font-bold text-violet-400">{totalPayrollCost.toLocaleString()}đ</p>
-            <p className="text-xs text-white/55">Thực lĩnh bàn giao nhân sự</p>
+            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">
+              {viewMode === "yearly" ? "Ước tính Quỹ lương Năm" : `Tổng quỹ lương ${selectedMonth}`}
+            </span>
+            <p className="text-2xl font-mono font-bold text-violet-400">{(totalPayrollCost * factor).toLocaleString()}đ</p>
+            <p className="text-xs text-white/55">
+              {viewMode === "yearly" ? "Dự toán chuyển khoản 12 tháng" : "Thực lĩnh bàn giao nhân sự"}
+            </p>
           </div>
           <div className="p-2.5 rounded-lg bg-violet-600/10 text-violet-400">
             <DollarSign className="w-4 h-4" />
@@ -202,8 +209,10 @@ export default function Payroll({
 
         <div className="card-3d p-6 rounded-2xl flex items-start justify-between">
           <div className="space-y-2">
-            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Lương bình quân thực tế</span>
-            <p className="text-2xl font-mono font-bold text-emerald-400">{averageSalary.toLocaleString()}đ</p>
+            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">
+              {viewMode === "yearly" ? "Thu nhập bình quân Năm" : "Lương bình quân thực tế"}
+            </span>
+            <p className="text-2xl font-mono font-bold text-emerald-400">{(averageSalary * factor).toLocaleString()}đ</p>
             <p className="text-xs text-white/55">Đã bao gồm phụ cấp & OT</p>
           </div>
           <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400">
@@ -224,9 +233,11 @@ export default function Payroll({
 
         <div className="card-3d p-6 rounded-2xl flex items-start justify-between">
           <div className="space-y-2">
-            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Khấu trừ toàn cục</span>
+            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">
+              {viewMode === "yearly" ? "Ước tính Khấu trừ Năm" : "Khấu trừ toàn cục"}
+            </span>
             <p className="text-2xl font-mono font-bold text-rose-400">
-              {payroll.reduce((acc, p) => acc + p.deductions, 0).toLocaleString()} <span className="text-xs">đ</span>
+              {(payroll.reduce((acc, p) => acc + p.deductions, 0) * factor).toLocaleString()} <span className="text-xs">đ</span>
             </p>
             <p className="text-xs text-white/55">Thuế, phạt, BHXH, v.v...</p>
           </div>
@@ -252,7 +263,7 @@ export default function Payroll({
       )}
 
       {/* Tables Filter */}
-      <div className="flex flex-col md:flex-row gap-4 items-center">
+      <div className="flex flex-col lg:flex-row gap-4 items-center">
         <div className="flex-1 w-full relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" />
           <input
@@ -264,11 +275,37 @@ export default function Payroll({
           />
         </div>
 
-        <div className="flex gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap gap-3 w-full lg:w-auto items-center">
+          {/* Monthly / Yearly view toggler */}
+          <div className="flex border border-white/10 bg-[#161920] rounded-xl p-0.5 space-x-0.5 h-9 items-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewMode("monthly")}
+              className={`px-3.5 h-full rounded-lg text-xs font-bold transition-all duration-255 select-none cursor-pointer flex items-center ${
+                viewMode === "monthly"
+                  ? "bg-violet-600 text-white shadow-lg shadow-violet-950/20"
+                  : "text-white/60 hover:text-white hover:bg-white/3"
+              }`}
+            >
+              Lương Tháng
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("yearly")}
+              className={`px-3.5 h-full rounded-lg text-xs font-bold transition-all duration-255 select-none cursor-pointer flex items-center ${
+                viewMode === "yearly"
+                  ? "bg-violet-600 text-white shadow-lg shadow-violet-950/20"
+                  : "text-white/60 hover:text-white hover:bg-white/3"
+              }`}
+            >
+              Lương Toàn Năm (x12)
+            </button>
+          </div>
+
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="px-3 py-2 bg-[#161920] border border-white/10 rounded-xl text-white text-xs select-none focus:outline-none"
+            className="px-3 h-9 bg-[#161920] border border-white/10 rounded-xl text-white text-xs select-none focus:outline-none cursor-pointer"
           >
             <option value="05/2026">Chu kỳ 05/2026</option>
             <option value="06/2026">Chu kỳ 06/2026</option>
@@ -277,7 +314,7 @@ export default function Payroll({
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 bg-[#161920] border border-white/10 rounded-xl text-white text-xs select-none focus:outline-none"
+            className="px-3 h-9 bg-[#161920] border border-white/10 rounded-xl text-white text-xs select-none focus:outline-none cursor-pointer"
           >
             <option value="Tất cả">Tất cả trạng thái</option>
             <option value="Đã thanh toán">Đã thanh toán</option>
@@ -294,13 +331,13 @@ export default function Payroll({
             <thead className="bg-white/5 text-white/50 uppercase tracking-wider font-mono text-[10px] border-b border-white/5">
               <tr>
                 <th className="px-6 py-4">Nhân viên / Chu kỳ</th>
-                <th className="px-5 py-4 text-right">Lương cơ bản</th>
-                <th className="px-4 py-4 text-center">Ngày công (Công chuẩn 22)</th>
-                <th className="px-4 py-4 text-center">Tăng ca (H)</th>
-                <th className="px-4 py-4 text-right">Phụ cấp + OT</th>
-                <th className="px-4 py-4 text-right">Khấu trừ (-)</th>
-                <th className="px-4 py-4 text-right">Tạm ứng</th>
-                <th className="px-6 py-4 text-right">Thực lĩnh</th>
+                <th className="px-5 py-4 text-right">Lương cơ bản ({viewMode === "yearly" ? "năm" : "tháng"})</th>
+                <th className="px-4 py-4 text-center">Ngày công {viewMode === "yearly" ? "(ước tính/năm)" : "(Công chuẩn 22)"}</th>
+                <th className="px-4 py-4 text-center">Tăng ca {viewMode === "yearly" ? "(năm)" : "(H)"}</th>
+                <th className="px-4 py-4 text-right">Phụ cấp + OT ({viewMode === "yearly" ? "năm" : "tháng"})</th>
+                <th className="px-4 py-4 text-right">Khấu trừ ({viewMode === "yearly" ? "năm" : "tháng"})</th>
+                <th className="px-4 py-4 text-right">Tạm ứng ({viewMode === "yearly" ? "năm" : "tháng"})</th>
+                <th className="px-6 py-4 text-right font-bold text-violet-300">Thực lĩnh ({viewMode === "yearly" ? "Dự toán hằng năm" : "tháng"})</th>
                 <th className="px-6 py-4 text-center">Trạng thái</th>
                 <th className="px-6 py-4 text-center">Thao tác</th>
               </tr>
@@ -310,32 +347,34 @@ export default function Payroll({
                 <tr key={pay.id} className="hover:bg-white/2 transition-colors">
                   <td className="px-6 py-4">
                     <p className="font-bold text-white">{pay.employeeName}</p>
-                    <span className="text-[10px] text-white/30 font-mono italic">{pay.month}</span>
+                    <span className="text-[10px] text-white/30 font-mono italic">
+                      {viewMode === "yearly" ? "Mô phỏng 12 tháng liên tiếp" : pay.month}
+                    </span>
                   </td>
                   <td className="px-5 py-4 text-right font-mono text-white/70">
-                    {pay.basicSalary.toLocaleString()}đ
+                    {(pay.basicSalary * factor).toLocaleString()}đ
                   </td>
                   <td className="px-4 py-4 text-center font-mono font-bold text-violet-400">
-                    {pay.workDays} / 22
+                    {viewMode === "yearly" ? `${pay.workDays * 12} ngày` : `${pay.workDays} / 22`}
                   </td>
                   <td className="px-4 py-4 text-center font-mono text-white/50">
-                    {pay.overtimeHours > 0 ? `+${pay.overtimeHours}h` : "-"}
+                    {pay.overtimeHours > 0 ? (viewMode === "yearly" ? `+${pay.overtimeHours * 12}h` : `+${pay.overtimeHours}h`) : "-"}
                   </td>
                   <td className="px-4 py-4 text-right font-mono text-emerald-400">
-                    +{(pay.allowance + pay.overtimeHours * 200000).toLocaleString()}đ
+                    +{((pay.allowance + pay.overtimeHours * 200000) * factor).toLocaleString()}đ
                   </td>
                   <td className="px-4 py-4 text-right font-mono text-rose-500">
-                    -{pay.deductions.toLocaleString()}đ
+                    -{(pay.deductions * factor).toLocaleString()}đ
                   </td>
                   <td className="px-4 py-4 text-right font-mono">
                     {pay.advance > 0 ? (
-                      <span className="text-amber-400">-{pay.advance.toLocaleString()}đ</span>
+                      <span className="text-amber-400">-{(pay.advance * factor).toLocaleString()}đ</span>
                     ) : (
                       <span className="text-white/30">-</span>
                     )}
                   </td>
                   <td className="px-6 py-4 text-right font-mono text-white font-extrabold text-sm">
-                    {pay.netSalary.toLocaleString()}đ
+                    {(pay.netSalary * factor).toLocaleString()}đ
                   </td>
                   <td className="px-6 py-4 text-center">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -506,55 +545,59 @@ export default function Payroll({
                     </div>
                     <div className="text-right">
                       <p className="text-white/40 text-[10px] uppercase font-bold">Kỳ chi trả</p>
-                      <p className="font-mono text-violet-400 font-bold mt-0.5">{selectedPay.month}</p>
+                      <p className="font-mono text-violet-400 font-bold mt-0.5">
+                        {viewMode === "yearly" ? "Ước tính Năm (12 tháng)" : selectedPay.month}
+                      </p>
                     </div>
                   </div>
 
                   <div className="space-y-2 font-mono text-white/80">
                     <div className="flex justify-between">
                       <span className="text-white/55">Lương thỏa thuận (Hợp đồng):</span>
-                      <span className="text-white">{selectedPay.basicSalary.toLocaleString()}đ</span>
+                      <span className="text-white">{(selectedPay.basicSalary * factor).toLocaleString()}đ</span>
                     </div>
 
                     <div className="flex justify-between">
                       <span className="text-white/55">Số ngày công thực tế:</span>
-                      <span className="text-white">{selectedPay.workDays} / 22 ngày</span>
+                      <span className="text-white">{viewMode === "yearly" ? `${selectedPay.workDays * 12} ngày` : `${selectedPay.workDays} / 22 ngày`}</span>
                     </div>
 
                     <div className="flex justify-between">
                       <span className="text-white/55">Phụ cấp chức vụ & phúc lợi:</span>
-                      <span className="text-emerald-400">+{selectedPay.allowance.toLocaleString()}đ</span>
+                      <span className="text-emerald-400">+{(selectedPay.allowance * factor).toLocaleString()}đ</span>
                     </div>
 
                     {selectedPay.overtimeHours > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-white/55">Lương tăng ca (+{selectedPay.overtimeHours} giờ):</span>
-                        <span className="text-emerald-400">+{(selectedPay.overtimeHours * 200000).toLocaleString()}đ</span>
+                        <span className="text-white/55">Lương tăng ca (+{viewMode === "yearly" ? selectedPay.overtimeHours * 12 : selectedPay.overtimeHours} giờ):</span>
+                        <span className="text-emerald-400">+{((selectedPay.overtimeHours * 200000) * factor).toLocaleString()}đ</span>
                       </div>
                     )}
 
                     <div className="flex justify-between border-t border-white/5 pt-2">
                       <span className="text-white/55">Khấu trừ quy định BHXH:</span>
-                      <span className="text-rose-400">-1,000,000đ</span>
+                      <span className="text-rose-400">-{(1000000 * factor).toLocaleString()}đ</span>
                     </div>
 
                     {selectedPay.deductions > 1000000 && (
                       <div className="flex justify-between">
                         <span className="text-white/55">Khấu trừ đi muộn/việc riêng:</span>
-                        <span className="text-rose-400">-{(selectedPay.deductions - 1000000).toLocaleString()}đ</span>
+                        <span className="text-rose-400">-{((selectedPay.deductions - 1000000) * factor).toLocaleString()}đ</span>
                       </div>
                     )}
 
                     {selectedPay.advance > 0 && (
                       <div className="flex justify-between border-b border-white/5 pb-2">
                         <span className="text-white/55">Bốc trừ tạm ứng giải ngân:</span>
-                        <span className="text-rose-500">-{selectedPay.advance.toLocaleString()}đ</span>
+                        <span className="text-rose-500">-{(selectedPay.advance * factor).toLocaleString()}đ</span>
                       </div>
                     )}
 
                     <div className="flex justify-between text-base font-bold text-white border-t border-dashed border-white/10 pt-3">
-                      <span className="font-sans font-black">THỰC NHẬN CHUYỂN KHOẢN:</span>
-                      <span className="text-violet-400 font-mono">{selectedPay.netSalary.toLocaleString()}đ</span>
+                      <span className="font-sans font-black">
+                        {viewMode === "yearly" ? "ƯỚC TÍNH THỰC LĨNH NĂM:" : "THỰC NHẬN CHUYỂN KHOẢN:"}
+                      </span>
+                      <span className="text-violet-400 font-mono">{(selectedPay.netSalary * factor).toLocaleString()}đ</span>
                     </div>
                   </div>
                 </div>

@@ -29,6 +29,19 @@ export default function TimeAttendance({ employees, attendance, setAttendance }:
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("Tất cả trạng thái");
   const [justCheckedIn, setJustCheckedIn] = useState<string | null>(null);
+  const [selectedEmpId, setSelectedEmpId] = useState<string>("");
+
+  // Select first employee or HR Manager (Lan Anh) on mount
+  useEffect(() => {
+    if (employees.length > 0) {
+      const manager = employees.find(e => e.id === "emp04" || e.name.includes("Lan Anh"));
+      if (manager) {
+        setSelectedEmpId(manager.id);
+      } else {
+        setSelectedEmpId(employees[0].id);
+      }
+    }
+  }, [employees]);
 
   // Tick clock
   useEffect(() => {
@@ -39,13 +52,18 @@ export default function TimeAttendance({ employees, attendance, setAttendance }:
   const timeString = time.toLocaleTimeString("vi-VN", { hour12: false });
   const dateString = time.toLocaleDateString("vi-VN", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
-  // Simulate Check-In for the HR Manager (Lan Anh - emp04)
-  const isCheckedInToday = attendance.some(a => a.employeeId === "emp04" && a.date === "2026-05-20");
-  const todayRecordForManager = attendance.find(a => a.employeeId === "emp04" && a.date === "2026-05-20");
+  const activeEmployee = employees.find(e => e.id === selectedEmpId);
+  const isCheckedInToday = attendance.some(a => a.employeeId === selectedEmpId && a.date === "2026-05-20");
+  const todayRecordForActive = attendance.find(a => a.employeeId === selectedEmpId && a.date === "2026-05-20");
 
   const handleCheckInSimulate = () => {
-    if (isCheckedInToday && todayRecordForManager?.checkOut) {
-      alert("Bạn đã hoàn thành check-out hôm nay!");
+    if (!selectedEmpId) {
+      alert("Vui lòng chọn nhân viên!");
+      return;
+    }
+
+    if (isCheckedInToday && todayRecordForActive?.checkOut) {
+      alert(`Nhân viên ${activeEmployee?.name} đã hoàn thành check-out hôm nay!`);
       return;
     }
 
@@ -58,12 +76,12 @@ export default function TimeAttendance({ employees, attendance, setAttendance }:
       
       const newRecord: Attendance = {
         id: `att-${Date.now()}`,
-        employeeId: "emp04",
+        employeeId: selectedEmpId,
         date: "2026-05-20",
         checkIn: timeString,
         checkOut: null as any,
         status: isLate ? "Đi muộn" : "Đúng giờ",
-        notes: "Ghi nhận check-in trực tuyến của Giám đốc Nhân sự"
+        notes: `Ghi nhận check-in trực tuyến của ${activeEmployee?.name}`
       };
 
       setAttendance([...attendance, newRecord]);
@@ -72,11 +90,11 @@ export default function TimeAttendance({ employees, attendance, setAttendance }:
     } else {
       // Check out
       setAttendance(attendance.map(a => {
-        if (a.employeeId === "emp04" && a.date === "2026-05-20") {
+        if (a.employeeId === selectedEmpId && a.date === "2026-05-20") {
           return {
             ...a,
             checkOut: timeString,
-            notes: "Ghi nhận check-out hoàn thành ngày công"
+            notes: `Ghi nhận check-out hoàn thành ngày công của ${activeEmployee?.name}`
           };
         }
         return a;
@@ -105,42 +123,63 @@ export default function TimeAttendance({ employees, attendance, setAttendance }:
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Interactive Clock Box */}
-        <div className="lg:col-span-1 p-6 rounded-2xl bg-gradient-to-br from-indigo-950/40 via-slate-900 to-violet-950/40 border border-violet-500/20 flex flex-col items-center text-center justify-between relative overflow-hidden h-80">
+        <div className="lg:col-span-1 p-6 rounded-2xl bg-gradient-to-br from-indigo-950/40 via-slate-900 to-violet-950/40 border border-violet-500/20 flex flex-col items-center text-center justify-between relative overflow-hidden min-h-[385px] h-auto space-y-4">
           <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/10 rounded-full blur-2xl pointer-events-none" />
           
-          <div className="space-y-1">
+          <div className="space-y-1 w-full">
             <span className="text-xs uppercase font-bold text-violet-400 tracking-wider">Chấm Công Trực Tuyến</span>
             <p className="text-[11px] text-slate-400">{dateString}</p>
           </div>
 
-          <div className="space-y-1 my-4">
-            <h2 className="text-5xl font-mono font-bold text-white tracking-widest leading-none drop-shadow-[0_0_15px_rgba(124,58,237,0.3)]">{timeString}</h2>
-            <div className="flex items-center justify-center space-x-1.5 text-[11px] text-slate-400">
+          {/* Employee Picker Selector Dropdown */}
+          <div className="w-full text-left bg-slate-950/30 p-3 rounded-xl border border-white/5 space-y-1">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] text-violet-300 font-bold uppercase tracking-wider block">
+                Chọn Nhân viên chấm công
+              </label>
+              <span className="text-[9px] bg-violet-500/10 text-violet-400 border border-violet-500/20 px-1.5 py-0.5 rounded font-mono">HR SIM</span>
+            </div>
+            <select
+              value={selectedEmpId}
+              onChange={(e) => setSelectedEmpId(e.target.value)}
+              className="w-full mt-1 bg-slate-950 border border-slate-800 focus:border-violet-500 focus:outline-none rounded-lg text-white text-xs px-2.5 py-1.5 cursor-pointer font-medium"
+            >
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name} ({emp.code} - {emp.department})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1 w-full">
+            <h2 className="text-4xl font-mono font-bold text-white tracking-widest leading-none drop-shadow-[0_0_15px_rgba(124,58,237,0.3)]">{timeString}</h2>
+            <div className="flex items-center justify-center space-x-1.5 text-[11px] text-slate-400 mt-2">
               <MapPin className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
               <span>Vị trí hợp lệ: Trụ sở Hà Nội (IP GPS)</span>
             </div>
           </div>
 
           {/* Action Button */}
-          <div className="w-full">
+          <div className="w-full pt-1">
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={handleCheckInSimulate}
-              className={`w-full py-3.5 px-6 rounded-xl text-sm font-semibold flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-lg ${
+              className={`w-full py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-lg ${
                 isCheckedInToday 
-                  ? todayRecordForManager?.checkOut 
+                  ? todayRecordForActive?.checkOut 
                     ? "bg-slate-800 text-slate-500 border border-slate-700 pointer-events-none"
-                    : "bg-amber-600 hover:bg-amber-500 text-white hover:scale-[1.02]"
-                  : "bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white hover:scale-[1.02] glow-purple"
+                    : "bg-amber-600 hover:bg-amber-500 text-white hover:scale-[1.01]"
+                  : "bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white hover:scale-[1.01] glow-purple"
               }`}
             >
-              <Clock className="w-4 h-4 animate-pulse" />
+              <Clock className="w-3.5 h-3.5 animate-pulse" />
               <span>
                 {isCheckedInToday 
-                  ? todayRecordForManager?.checkOut 
+                  ? todayRecordForActive?.checkOut 
                     ? "Đã hoàn thành ngày công" 
-                    : "Check-out kết thúc ca" 
-                  : "Check-in bắt đầu ca"}
+                    : `Check-out (${activeEmployee?.name.split(" ").pop()})`
+                  : `Check-in (${activeEmployee?.name.split(" ").pop()})`}
               </span>
             </motion.button>
             
@@ -151,7 +190,7 @@ export default function TimeAttendance({ employees, attendance, setAttendance }:
                 className="text-xs font-semibold text-emerald-400 mt-2 flex items-center justify-center space-x-1"
               >
                 <CheckCircle className="w-3.5 h-3.5" />
-                <span>Ghi nhận {justCheckedIn} thành công lúc {timeString}!</span>
+                <span>Thực hiện {justCheckedIn === "CHECK_IN" ? "Check-in" : "Check-out"} cho {activeEmployee?.name}!</span>
               </motion.div>
             )}
           </div>

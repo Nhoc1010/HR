@@ -50,7 +50,18 @@ export default function App() {
           />
         );
       case "employees":
-        return <Employees employees={employees} setEmployees={setEmployees} />;
+        return (
+          <Employees 
+            employees={employees} 
+            setEmployees={setEmployees} 
+            contracts={contracts}
+            setContracts={setContracts}
+            payroll={payroll}
+            setPayroll={setPayroll}
+            attendance={attendance}
+            setAttendance={setAttendance}
+          />
+        );
       case "attendance":
         return (
           <TimeAttendance 
