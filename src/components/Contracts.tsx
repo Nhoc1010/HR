@@ -18,7 +18,8 @@ import {
   X, 
   PenTool,
   TrendingUp,
-  Award
+  Award,
+  Hourglass
 } from "lucide-react";
 import { Employee, Contract } from "../types";
 
@@ -165,6 +166,90 @@ export default function Contracts({ employees, setEmployees, contracts, setContr
     setRenewNote("Gia hạn điều chỉnh định kỳ tăng bậc");
   };
 
+  const renderContractCountdown = (con: Contract) => {
+    const today = new Date("2026-05-20");
+
+    if (con.endDate === "Vô thời hạn" || con.type === "Không xác định thời hạn") {
+      return (
+        <div className="mt-1.5 flex items-center gap-1 text-[10px] text-fuchsia-400 font-bold bg-fuchsia-500/10 px-1.5 py-0.5 rounded border border-fuchsia-500/15 w-fit">
+          <span className="animate-pulse font-mono font-black">∞</span>
+          <span>Không thời hạn</span>
+        </div>
+      );
+    }
+
+    const start = new Date(con.startDate);
+    const end = new Date(con.endDate);
+    
+    // Check if dates are valid
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return null;
+    }
+
+    const diffTime = end.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // Calculate progression percentage
+    const totalDuration = end.getTime() - start.getTime();
+    const elapsedDuration = today.getTime() - start.getTime();
+    let percentElapsed = 0;
+    if (totalDuration > 0) {
+      percentElapsed = Math.min(100, Math.max(0, (elapsedDuration / totalDuration) * 100));
+    }
+
+    let badgeStyle = "";
+    let textStr = "";
+    let indicatorColor = "";
+
+    if (diffDays < 0) {
+      badgeStyle = "bg-rose-500/10 text-rose-400 border-rose-500/20";
+      textStr = `Quá hạn ${Math.abs(diffDays)} ngày`;
+      indicatorColor = "bg-rose-500";
+    } else if (diffDays === 0) {
+      badgeStyle = "bg-rose-600/20 text-rose-300 border-rose-500/45 animate-pulse";
+      textStr = "Hết hạn hôm nay!";
+      indicatorColor = "bg-rose-600";
+    } else if (diffDays <= 30) {
+      badgeStyle = "bg-rose-500/10 text-rose-400 border-rose-500/20 font-extrabold animate-pulse";
+      textStr = `Còn ${diffDays} ngày`;
+      indicatorColor = "bg-rose-500";
+    } else if (diffDays <= 90) {
+      badgeStyle = "bg-amber-500/10 text-amber-400 border-amber-500/15";
+      textStr = `Còn ${diffDays} ngày`;
+      indicatorColor = "bg-amber-500";
+    } else {
+      badgeStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/15";
+      textStr = `Còn ${diffDays} ngày`;
+      indicatorColor = "bg-emerald-505";
+    }
+
+    return (
+      <div className="mt-2 space-y-1 w-full max-w-[155px]">
+        {/* Countdown Badge */}
+        <div className={`flex items-center gap-1 text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded border uppercase ${badgeStyle} w-fit`}>
+          <Hourglass className="w-2.5 h-2.5 animate-spin-slow" />
+          <span>{textStr}</span>
+        </div>
+        
+        {/* Progress Bar showing consumed timeline */}
+        {totalDuration > 0 && diffDays >= 0 && (
+          <div className="space-y-0.5">
+            <div className="flex justify-between text-[8px] text-white/30 font-mono">
+              <span>Timeline đã dùng</span>
+              <span>{Math.round(percentElapsed)}%</span>
+            </div>
+            <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden border border-white/5">
+              <div 
+                className={`h-full ${indicatorColor} rounded-full transition-all duration-500`}
+                style={{ width: `${percentElapsed}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 select-text">
       {/* Header Panel */}
@@ -306,8 +391,12 @@ export default function Contracts({ employees, setEmployees, contracts, setContr
                   </td>
                   <td className="px-4 py-4 font-mono text-white/60">
                     <div className="flex flex-col gap-0.5">
-                      <span>{con.startDate}</span>
-                      <span className="text-[10px] opacity-50">đến {con.endDate}</span>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-white/30" />
+                        <span className="text-white/80">{con.startDate}</span>
+                      </div>
+                      <span className="text-[10px] opacity-45 pl-5">đến {con.endDate}</span>
+                      {renderContractCountdown(con)}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right font-mono text-white font-medium">

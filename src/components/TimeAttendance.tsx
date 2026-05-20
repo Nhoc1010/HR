@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, Dispatch, SetStateAction } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { 
   Clock, 
   CheckCircle, 
@@ -14,22 +14,88 @@ import {
   ArrowRight,
   UserCheck,
   Zap,
-  Coffee
+  Coffee,
+  HelpCircle,
+  Calendar,
+  Layers,
+  Sparkles
 } from "lucide-react";
-import { Employee, Attendance } from "../types";
+import { Employee, Attendance, Payroll as PayrollType } from "../types";
 
 interface TimeAttendanceProps {
   employees: Employee[];
   attendance: Attendance[];
   setAttendance: Dispatch<SetStateAction<Attendance[]>>;
+  payroll: PayrollType[];
+  setPayroll: Dispatch<SetStateAction<PayrollType[]>>;
 }
 
-export default function TimeAttendance({ employees, attendance, setAttendance }: TimeAttendanceProps) {
+export default function TimeAttendance({ 
+  employees, 
+  attendance, 
+  setAttendance,
+  payroll,
+  setPayroll
+}: TimeAttendanceProps) {
   const [time, setTime] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("Tất cả trạng thái");
   const [justCheckedIn, setJustCheckedIn] = useState<string | null>(null);
   const [selectedEmpId, setSelectedEmpId] = useState<string>("");
+
+  const [activeSubTab, setActiveSubTab] = useState<"daily" | "monthlyRoster">("daily");
+  const [bridgeResult, setBridgeResult] = useState<{
+    processed: boolean;
+    totalLates: number;
+    employeesAffected: number;
+    totalPenaltyAmount: number;
+  } | null>(null);
+
+  const recentDates = ["2026-05-16", "2026-05-17", "2026-05-18", "2026-05-19", "2026-05-20"];
+
+  const handleBridgeDeductionsToPayroll = () => {
+    if (!payroll || !setPayroll) return;
+
+    let totalLatesCount = 0;
+    let employeesAffectedCount = 0;
+    const penaltyRate = 120000; // 120,000 VND per late check-in
+
+    const updatedPayroll = payroll.map(p => {
+      // Find employee's attendance logs in the last 5 days
+      const empLogs = attendance.filter(a => a.employeeId === p.employeeId && recentDates.includes(a.date));
+      const lateLogs = empLogs.filter(a => a.status === "Đi muộn");
+      
+      if (lateLogs.length > 0) {
+        totalLatesCount += lateLogs.length;
+        employeesAffectedCount += 1;
+        const penaltyValue = lateLogs.length * penaltyRate;
+
+        // Base deductions is 1,000,000đ (standard BHXH). Let's accumulate late checks!
+        const targetDeductions = p.deductions + penaltyValue;
+        const recalculatedNet = p.basicSalary + p.allowance - targetDeductions - p.advance;
+
+        return {
+          ...p,
+          deductions: targetDeductions,
+          netSalary: recalculatedNet
+        };
+      }
+      return p;
+    });
+
+    setPayroll(updatedPayroll);
+    setBridgeResult({
+      processed: true,
+      totalLates: totalLatesCount,
+      employeesAffected: employeesAffectedCount,
+      totalPenaltyAmount: totalLatesCount * penaltyRate
+    });
+
+    // Reset after 8 seconds
+    setTimeout(() => {
+      setBridgeResult(null);
+    }, 8000);
+  };
 
   // Select first employee or HR Manager (Lan Anh) on mount
   useEffect(() => {
@@ -240,107 +306,268 @@ export default function TimeAttendance({ employees, attendance, setAttendance }:
       </div>
 
       {/* Filter and Log table */}
-      <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-        <h3 className="text-lg font-bold text-white tracking-tight flex items-center space-x-2">
-          <span>Sổ ghi nhận chấm công hôm nay — {todayDateStr}</span>
-        </h3>
+      <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-5">
         
-        {/* Search tool */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm nhân sự..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-slate-950 border border-slate-805 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-violet-505 transition-all text-sm"
-            />
-          </div>
-
-          <div className="w-full sm:w-56">
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white appearance-none cursor-pointer focus:outline-none text-sm"
+        {/* Subtabs Choice */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-white/5">
+          <div className="flex bg-[#161a23] border border-white/5 rounded-xl p-0.5 space-x-0.5 items-center select-none shrink-0 h-9">
+            <button
+              onClick={() => setActiveSubTab("daily")}
+              className={`px-3.5 h-full rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer flex items-center ${
+                activeSubTab === "daily"
+                  ? "bg-violet-600 text-white shadow-lg shadow-violet-950/20"
+                  : "text-white/60 hover:text-white"
+              }`}
             >
-              <option value="Tất cả trạng thái">Tất cả trạng thái</option>
-              <option value="Đúng giờ">Đúng giờ</option>
-              <option value="Đi muộn">Đi muộn</option>
-              <option value="Chưa điểm danh">Chưa điểm danh</option>
-            </select>
+              Xem Chi Tiết Ngày
+            </button>
+            <button
+              onClick={() => setActiveSubTab("monthlyRoster")}
+              className={`px-3.5 h-full rounded-lg text-xs font-bold transition-all duration-150 flex items-center space-x-1 cursor-pointer ${
+                activeSubTab === "monthlyRoster"
+                  ? "bg-violet-600 text-white shadow-lg shadow-violet-950/20"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Bảng Công Tổng Hợp</span>
+            </button>
           </div>
+
+          {activeSubTab === "monthlyRoster" && (
+            <button
+              onClick={handleBridgeDeductionsToPayroll}
+              className="px-4 py-2 text-xs font-bold bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-550 hover:to-orange-550 text-white rounded-xl flex items-center space-x-1.5 shadow-lg active:scale-95 duration-150 cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+              <span>Đồng Bộ Phạt Sang Lương</span>
+            </button>
+          )}
         </div>
 
-        {/* Attendance table list */}
-        <div className="overflow-x-auto rounded-xl border border-slate-800">
-          <table className="w-full border-collapse text-left text-sm text-slate-300">
-            <thead>
-              <tr className="bg-slate-950 text-slate-400 border-b border-slate-800">
-                <th className="p-4 font-semibold">Nhân viên</th>
-                <th className="p-4 font-semibold">Mã NV</th>
-                <th className="p-4 font-semibold">Giờ Check-in</th>
-                <th className="p-4 font-semibold">Giờ Check-out</th>
-                <th className="p-4 font-semibold">Trạng thái</th>
-                <th className="p-4 font-semibold">Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((emp) => {
-                const log = attendance.find(a => a.employeeId === emp.id && a.date === todayDateStr);
-                const isEmployeeMatchingQuery = emp.name.toLowerCase().includes(searchQuery.toLowerCase());
-                
-                // Status mapping
-                let statusVal = "Chưa điểm danh";
-                if (log) {
-                  statusVal = log.status;
-                } else if (emp.status === "Nghỉ phép") {
-                  statusVal = "Nghỉ phép";
-                }
+        {activeSubTab === "daily" ? (
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono flex items-center space-x-2">
+              <span>Sổ ghi nhận chấm công hôm nay — {todayDateStr}</span>
+            </h3>
+            
+            {/* Search tool */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm nhân sự..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-11 pr-4 py-2.5 bg-slate-950 border border-slate-805 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-violet-505 transition-all text-sm"
+                />
+              </div>
 
-                // Check filter status match
-                const matchesStatusFilter = 
-                  selectedStatus === "Tất cả trạng thái" ||
-                  (selectedStatus === "Chưa điểm danh" && !log) ||
-                  (log && log.status === selectedStatus);
+              <div className="w-full sm:w-56">
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white appearance-none cursor-pointer focus:outline-none text-sm font-semibold"
+                >
+                  <option value="Tất cả trạng thái">Tất cả trạng thái</option>
+                  <option value="Đúng giờ">Đúng giờ</option>
+                  <option value="Đi muộn">Đi muộn</option>
+                  <option value="Chưa điểm danh">Chưa điểm danh</option>
+                </select>
+              </div>
+            </div>
 
-                if (!isEmployeeMatchingQuery || !matchesStatusFilter) return null;
-
-                return (
-                  <tr key={emp.id} className="border-b border-slate-800/60 hover:bg-slate-900/30 transition-colors">
-                    <td className="p-4 flex items-center space-x-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-indigo-950 text-indigo-400 flex items-center justify-center font-bold text-xs">
-                        {emp.name.split(" ").pop()?.charAt(0)}
-                      </div>
-                      <span className="font-semibold text-white">{emp.name}</span>
-                    </td>
-                    <td className="p-4 font-mono text-xs">{emp.code}</td>
-                    <td className="p-4 font-mono text-emerald-400 font-medium">
-                      {log?.checkIn || <span className="text-slate-600">—</span>}
-                    </td>
-                    <td className="p-4 font-mono text-indigo-400 font-medium">
-                      {log?.checkOut || <span className="text-slate-600">—</span>}
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        statusVal === "Đúng giờ" 
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
-                          : statusVal === "Đi muộn" 
-                            ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                            : statusVal === "Nghỉ phép"
-                              ? "bg-stone-800 text-stone-400"
-                              : "bg-rose-500/10 text-rose-400 border border-rose-500/10"
-                      }`}>
-                        {statusVal}
-                      </span>
-                    </td>
-                    <td className="p-4 text-xs text-slate-400">{log?.notes || "—"}</td>
+            {/* Attendance table list */}
+            <div className="overflow-x-auto rounded-xl border border-slate-800">
+              <table className="w-full border-collapse text-left text-sm text-slate-300">
+                <thead>
+                  <tr className="bg-slate-950 text-slate-400 border-b border-slate-800 font-mono text-xs uppercase font-bold">
+                    <th className="p-4">Nhân viên</th>
+                    <th className="p-4">Mã NV</th>
+                    <th className="p-4">Giờ Check-in</th>
+                    <th className="p-4">Giờ Check-out</th>
+                    <th className="p-4">Trạng thái</th>
+                    <th className="p-4">Ghi chú</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {employees.map((emp) => {
+                    const log = attendance.find(a => a.employeeId === emp.id && a.date === todayDateStr);
+                    const isEmployeeMatchingQuery = emp.name.toLowerCase().includes(searchQuery.toLowerCase());
+                    
+                    // Status mapping
+                    let statusVal = "Chưa điểm danh";
+                    if (log) {
+                      statusVal = log.status;
+                    } else if (emp.status === "Nghỉ phép") {
+                      statusVal = "Nghỉ phép";
+                    }
+
+                    // Check filter status match
+                    const matchesStatusFilter = 
+                      selectedStatus === "Tất cả trạng thái" ||
+                      (selectedStatus === "Chưa điểm danh" && !log) ||
+                      (log && log.status === selectedStatus);
+
+                    if (!isEmployeeMatchingQuery || !matchesStatusFilter) return null;
+
+                    return (
+                      <tr key={emp.id} className="border-b border-slate-800/60 hover:bg-slate-900/30 transition-colors">
+                        <td className="p-4 flex items-center space-x-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-indigo-950 text-indigo-400 flex items-center justify-center font-bold text-xs font-mono">
+                            {emp.name.split(" ").pop()?.charAt(0)}
+                          </div>
+                          <span className="font-semibold text-white">{emp.name}</span>
+                        </td>
+                        <td className="p-4 font-mono text-xs">{emp.code}</td>
+                        <td className="p-4 font-mono text-emerald-400 font-medium">
+                          {log?.checkIn || <span className="text-slate-605">—</span>}
+                        </td>
+                        <td className="p-4 font-mono text-indigo-405 font-medium">
+                          {log?.checkOut || <span className="text-slate-605">—</span>}
+                        </td>
+                        <td className="p-4">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            statusVal === "Đúng giờ" 
+                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
+                              : statusVal === "Đi muộn" 
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                : statusVal === "Nghỉ phép"
+                                  ? "bg-stone-800 text-stone-400"
+                                  : "bg-rose-500/10 text-rose-400 border border-rose-500/10"
+                          }`}>
+                            {statusVal}
+                          </span>
+                        </td>
+                        <td className="p-4 text-xs text-slate-400">{log?.notes || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Bridge Success Toast */}
+            <AnimatePresence>
+              {bridgeResult && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="p-5 rounded-2xl bg-gradient-to-r from-amber-600/15 via-orange-600/10 to-[#12141c] border border-amber-500/30 text-white space-y-2"
+                >
+                  <div className="flex items-center space-x-2 text-amber-400 font-extrabold text-xs tracking-wider uppercase">
+                    <CheckCircle className="w-5 h-5 text-amber-400 animate-bounce" />
+                    <span>Đồng bộ khấu trừ thành công sang bảng lương kì này!</span>
+                  </div>
+                  <div className="text-xs text-slate-300 leading-relaxed grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 font-mono">
+                    <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-850">
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Số hành vi trễ phát hiện</span>
+                      <strong className="text-amber-400 text-md">{bridgeResult.totalLates} lượt</strong>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-850">
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Lao động chịu phạt</span>
+                      <strong className="text-amber-400 text-md">{bridgeResult.employeesAffected} nhân viên</strong>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-850">
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Tổng hạch toán phạt</span>
+                      <strong className="text-rose-405 text-md">+{bridgeResult.totalPenaltyAmount.toLocaleString()}đ</strong>
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-slate-500 italic pt-1 text-right">
+                    * Hệ thống đã gộp các hành vi đi muộn trong tuần (120,000 VND/lượt) vào mục Khấu trừ & tự động giảm trừ Thực lĩnh trong bảng lương.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Roster Grid */}
+            <div className="overflow-x-auto rounded-xl border border-slate-800 bg-[#101217]/50">
+              <table className="w-full border-collapse text-left text-sm text-slate-300">
+                <thead>
+                  <tr className="bg-slate-950/80 text-slate-405 border-b border-slate-800 font-mono text-xs uppercase font-bold">
+                    <th className="p-4">Nhân viên</th>
+                    {recentDates.map(d => (
+                      <th key={d} className="p-4 text-center">
+                        {d.slice(8, 10)}/{d.slice(5, 7)}
+                      </th>
+                    ))}
+                    <th className="p-4 text-center">Tổng Trễ</th>
+                    <th className="p-4 text-right">Ảnh hưởng lương (Ước tính)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.map((emp) => {
+                    // Count late times in recentDates
+                    const empLogs = attendance.filter(a => a.employeeId === emp.id && recentDates.includes(a.date));
+                    const lateTimes = empLogs.filter(a => a.status === "Đi muộn").length;
+                    
+                    return (
+                      <tr key={emp.id} className="border-b border-slate-800/55 hover:bg-slate-900/30 transition-colors">
+                        <td className="p-4">
+                          <div className="flex items-center space-x-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-indigo-950/65 text-indigo-405 flex items-center justify-center font-bold text-xs font-mono">
+                              {emp.name.split(" ").pop()?.charAt(0)}
+                            </div>
+                            <div>
+                              <span className="font-semibold text-white block">{emp.name}</span>
+                              <span className="text-[10px] text-slate-500 font-mono">{emp.code} • {emp.department}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {recentDates.map(d => {
+                          const log = attendance.find(a => a.employeeId === emp.id && a.date === d);
+                          
+                          let badge = (
+                            <span className="text-[10px] text-slate-650">• Vắng</span>
+                          );
+                          if (log) {
+                            if (log.status === "Đúng giờ") {
+                              badge = (
+                                <span className="text-emerald-400 font-extrabold text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded">✔ Đúng giờ</span>
+                              );
+                            } else if (log.status === "Đi muộn") {
+                              badge = (
+                                <span className="text-amber-400 font-extrabold text-[10px] bg-amber-500/10 px-2 py-0.5 rounded">⚠ Trễ</span>
+                              );
+                            }
+                          } else if (emp.status === "Nghỉ phép") {
+                            badge = (
+                              <span className="text-stone-400 text-[10px] bg-stone-850 px-2 py-0.5 rounded">☕ Phép</span>
+                            );
+                          }
+
+                          return (
+                            <td key={d} className="p-4 text-center">
+                              {badge}
+                            </td>
+                          );
+                        })}
+
+                        <td className="p-4 text-center font-bold text-xs font-mono text-amber-500">
+                          {lateTimes > 0 ? `${lateTimes} lần` : <span className="text-white/20 font-normal">-</span>}
+                        </td>
+
+                        <td className="p-4 text-right font-mono font-extrabold text-xs text-rose-500">
+                          {lateTimes > 0 ? `-${(lateTimes * 120000).toLocaleString()}đ` : <span className="text-white/30 font-normal">—</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="p-3 bg-white/2 rounded-xl text-[10px] text-slate-500 flex items-center gap-1.5 font-sans justify-center">
+              <HelpCircle className="w-3.5 h-3.5 text-slate-650" />
+              <span>Các mốc "Trễ" trong tuần được tổng hợp và tự động gánh phạt khấu trừ trực tiếp 120,000 VND / làn đi muộn.</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

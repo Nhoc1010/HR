@@ -68,6 +68,8 @@ export default function App() {
             employees={employees} 
             attendance={attendance} 
             setAttendance={setAttendance} 
+            payroll={payroll}
+            setPayroll={setPayroll}
           />
         );
       case "leaves":
@@ -102,7 +104,18 @@ export default function App() {
       case "tasks":
         return <Tasks employees={employees} tasks={tasks} setTasks={setTasks} />;
       case "recruitment":
-        return <Recruitment candidates={candidates} setCandidates={setCandidates} />;
+        return (
+          <Recruitment 
+            candidates={candidates} 
+            setCandidates={setCandidates}
+            employees={employees}
+            setEmployees={setEmployees}
+            contracts={contracts}
+            setContracts={setContracts}
+            payroll={payroll}
+            setPayroll={setPayroll}
+          />
+        );
       default:
         return (
           <div className="text-center text-slate-400 py-20 font-medium">

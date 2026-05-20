@@ -20,17 +20,110 @@ import {
   CheckCircle,
   ArrowRight
 } from "lucide-react";
-import { Candidate } from "../types";
+import { Candidate, Employee, Contract, Payroll as PayrollType } from "../types";
 
 interface RecruitmentProps {
   candidates: Candidate[];
   setCandidates: Dispatch<SetStateAction<Candidate[]>>;
+  employees: Employee[];
+  setEmployees: Dispatch<SetStateAction<Employee[]>>;
+  contracts: Contract[];
+  setContracts: Dispatch<SetStateAction<Contract[]>>;
+  payroll: PayrollType[];
+  setPayroll: Dispatch<SetStateAction<PayrollType[]>>;
 }
 
-export default function Recruitment({ candidates, setCandidates }: RecruitmentProps) {
+export default function Recruitment({ 
+  candidates, 
+  setCandidates,
+  employees,
+  setEmployees,
+  contracts,
+  setContracts,
+  payroll,
+  setPayroll
+}: RecruitmentProps) {
   const [activeCandidateId, setActiveCandidateId] = useState<string | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<string>("");
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+
+  // Onboarding States
+  const [isOnboardOpen, setIsOnboardOpen] = useState(false);
+  const [onboardDept, setOnboardDept] = useState("Kỹ thuật");
+  const [onboardSalary, setOnboardSalary] = useState(15000000);
+  const [onboardContractType, setOnboardContractType] = useState("Xác định thời hạn (12 tháng)");
+  const [onboardSuccess, setOnboardSuccess] = useState(false);
+  const [lastOnboardedCode, setLastOnboardedCode] = useState("");
+
+  const handleOnboardCandidate = (candidate: Candidate) => {
+    if (!employees || !setEmployees) return;
+
+    const nextCodeNum = employees.length + 1;
+    const assignedCode = `NV${String(nextCodeNum).padStart(3, "0")}`;
+    const newEmpId = `emp-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const todayStr = "2026-05-20";
+
+    const newEmp: Employee = {
+      id: newEmpId,
+      code: assignedCode,
+      name: candidate.name,
+      position: candidate.position,
+      phone: candidate.phone,
+      email: candidate.email !== "—" ? candidate.email : `${assignedCode.toLowerCase()}@company.vn`,
+      startDate: todayStr,
+      birthDate: "1997-08-15",
+      salary: onboardSalary,
+      department: onboardDept,
+      gender: "Nam",
+      address: "Hà Nội, Việt Nam",
+      bhxhNumber: `020${Math.floor(1000000 + Math.random() * 9000000)}`,
+      bhxhJoinDate: todayStr,
+      contractType: onboardContractType,
+      contractStartDate: todayStr,
+      status: "Đang làm"
+    };
+
+    const newContract: Contract = {
+      id: `con-${Date.now()}`,
+      employeeId: newEmpId,
+      employeeName: candidate.name,
+      type: onboardContractType as any,
+      startDate: todayStr,
+      endDate: onboardContractType === "Không xác định thời hạn" ? "Vô thời hạn" : "2027-05-20",
+      basicSalary: onboardSalary,
+      allowance: onboardSalary > 20000000 ? 3000000 : 1500000,
+      status: "Đang hiệu lực",
+      history: [
+        { date: todayStr, action: "Ký mới", note: `Khởi tạo bổ nhiệm tự động từ kênh tuyển dụng của ứng viên ${candidate.name}` }
+      ]
+    };
+
+    const newPay: PayrollType = {
+      id: `pay-${Date.now()}`,
+      employeeId: newEmpId,
+      employeeName: candidate.name,
+      month: "05/2026",
+      basicSalary: onboardSalary,
+      workDays: 22,
+      overtimeHours: 0,
+      allowance: onboardSalary > 20000000 ? 3000000 : 1500000,
+      deductions: 1000000,
+      advance: 0,
+      netSalary: onboardSalary + (onboardSalary > 20000000 ? 3000000 : 1500000) - 1000000,
+      status: "Đang tính toán"
+    };
+
+    setEmployees(prev => [...prev, newEmp]);
+    if (setContracts) setContracts(prev => [...prev, newContract]);
+    if (setPayroll) setPayroll(prev => [...prev, newPay]);
+
+    // Update candidate status to "Đã tuyển"
+    setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, status: "Đã tuyển" } : c));
+    
+    setLastOnboardedCode(assignedCode);
+    setOnboardSuccess(true);
+    setIsOnboardOpen(false);
+  };
 
   // New Candidate Form states
   const [isOpenForm, setIsOpenForm] = useState(false);
@@ -304,6 +397,99 @@ export default function Recruitment({ candidates, setCandidates }: RecruitmentPr
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Onboarding Workspace Section */}
+                <div className="pt-5 border-t border-slate-800 space-y-4">
+                  {onboardSuccess ? (
+                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25 space-y-2 text-xs">
+                      <div className="flex items-center space-x-2 text-emerald-400 font-bold">
+                        <CheckCircle className="w-4 h-4 animate-bounce" />
+                        <span>Đã kích hoạt Onboarding thành công!</span>
+                      </div>
+                      <p className="text-slate-300">
+                        Ứng viên <strong>{currentCandidate.name}</strong> đã chính thức gia nhập hệ thống với mã nhân viên <strong className="text-emerald-400 font-mono text-sm">{lastOnboardedCode}</strong>.
+                      </p>
+                      <div className="text-[10px] text-slate-500 space-y-0.5 pt-1 border-t border-slate-800 font-mono">
+                        <div>✓ Hồ sơ hành chính đã tạo</div>
+                        <div>✓ Hợp đồng lao động mẫu đã ký điện tử</div>
+                        <div>✓ Bản ghi tính lương tháng 05/2026 đã sẵn sàng</div>
+                      </div>
+                    </div>
+                  ) : !isOnboardOpen ? (
+                    <div className="bg-[#12141c] border border-slate-850 p-4 rounded-2xl flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <h5 className="text-xs font-bold text-white">Chuyển đổi thành nhân viên</h5>
+                        <p className="text-[10px] text-slate-450">Phê duyệt tuyển dụng, khởi tạo hồ sơ, hợp đồng.</p>
+                      </div>
+                      <button
+                        onClick={() => setIsOnboardOpen(true)}
+                        className="px-3 py-2 bg-gradient-to-r from-emerald-605 to-teal-650 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-950/20 active:scale-95 duration-150 cursor-pointer"
+                      >
+                        Bắt đầu Onboard
+                      </button>
+                    </div>
+                  ) : (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="bg-[#12141c] border border-emerald-500/30 p-4 rounded-2xl space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Cấu hình hồ sơ bổ nhiệm</span>
+                        <button onClick={() => setIsOnboardOpen(false)} className="text-[10px] text-slate-400 hover:text-white cursor-pointer">Hủy</button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-slate-450 block font-semibold uppercase">Phòng ban</label>
+                          <select
+                            value={onboardDept}
+                            onChange={(e) => setOnboardDept(e.target.value)}
+                            className="w-full bg-slate-950 font-medium text-white p-2 rounded-lg border border-slate-800"
+                          >
+                            <option value="Kỹ thuật">Kỹ thuật</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Kinh doanh">Kinh doanh</option>
+                            <option value="Nhân sự">Nhân sự</option>
+                            <option value="Tài chính">Tài chính</option>
+                            <option value="Hành chính">Hành chính</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-slate-455 block font-semibold uppercase">Loại Hợp đồng</label>
+                          <select
+                            value={onboardContractType}
+                            onChange={(e) => setOnboardContractType(e.target.value)}
+                            className="w-full bg-slate-950 font-medium text-white p-2 rounded-lg border border-slate-800 text-[10px]"
+                          >
+                            <option value="Xác định thời hạn (12 tháng)">HĐLĐ 12 tháng</option>
+                            <option value="Xác định thời hạn (24 tháng)">HĐLĐ 24 tháng</option>
+                            <option value="Không xác định thời hạn">HĐ vô thời hạn</option>
+                          </select>
+                        </div>
+
+                        <div className="col-span-2 space-y-1">
+                          <label className="text-[10px] text-slate-450 block font-semibold uppercase">Mức lương đề xuất (VNĐ)</label>
+                          <input
+                            type="number"
+                            value={onboardSalary}
+                            onChange={(e) => setOnboardSalary(Number(e.target.value))}
+                            className="w-full bg-slate-950 text-white p-2 rounded-lg border border-slate-800 font-mono text-center font-bold text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOnboardCandidate(currentCandidate)}
+                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg active:scale-95 duration-150 cursor-pointer uppercase tracking-wider"
+                      >
+                        Xác nhận ký onboard & Tạo NV
+                      </button>
+                    </motion.div>
+                  )}
                 </div>
 
               </div>

@@ -21,7 +21,8 @@ import {
   ChevronDown,
   RefreshCw,
   Sliders,
-  Check
+  Check,
+  Trash2
 } from "lucide-react";
 import { Employee, Contract, Payroll as PayrollType, Attendance } from "../types";
 
@@ -69,6 +70,7 @@ export default function Employees({
   const [bhxhJoinDate, setBhxhJoinDate] = useState("");
   const [contractType, setContractType] = useState("Xác định thời hạn (12 tháng)");
   const [contractStartDate, setContractStartDate] = useState("2026-05-20");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const depts = ["Kỹ thuật", "Marketing", "Kinh doanh", "Nhân sự", "Tài chính", "Hành chính"];
 
@@ -276,6 +278,7 @@ export default function Employees({
   // Open modal for editing or new
   const openFormModal = (emp: Employee | null = null) => {
     setActiveFormTab("profile");
+    setShowDeleteConfirm(false);
     if (emp) {
       setSelectedEmployee(emp);
       setFullName(emp.name);
@@ -351,6 +354,19 @@ export default function Employees({
       setEmployees([...employees, payload]);
     }
     setIsModalOpen(false);
+  };
+
+  const handleConfirmDelete = (id: string) => {
+    // Delete employee from employees list
+    setEmployees(prev => prev.filter(emp => emp.id !== id));
+    // Clean up contracts, payroll, and attendance
+    setContracts(prev => prev.filter(c => c.employeeId !== id));
+    setPayroll(prev => prev.filter(p => p.employeeId !== id));
+    setAttendance(prev => prev.filter(a => a.employeeId !== id));
+    
+    // Closer modal and reset states
+    setIsModalOpen(false);
+    setShowDeleteConfirm(false);
   };
 
   const handleAIAutoFill = async () => {
@@ -878,21 +894,61 @@ export default function Employees({
                 )}
 
                 {/* Submit / Close buttons */}
-                <div className="pt-4 border-t border-slate-800 flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-5 py-2.5 rounded-xl border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white text-sm font-semibold transition-all cursor-pointer"
-                  >
-                    Đóng lại
-                  </button>
-                  {activeFormTab === "profile" && (
-                    <button
-                      type="submit"
-                      className="px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-transform active:scale-95 cursor-pointer shadow-lg glow-purple"
-                    >
-                      Lưu thông tin
-                    </button>
+                <div className="pt-4 border-t border-slate-800">
+                  {showDeleteConfirm ? (
+                    <div className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-xl bg-rose-500/10 border border-rose-500/25 space-y-3 sm:space-y-0 gap-3">
+                      <span className="text-xs font-medium text-rose-400">
+                        Bạn có chắc chắn muốn xóa nhân viên này? Tất cả các dữ liệu hợp đồng, bảng lương & lịch sử chấm công liên quan sẽ bị loại khỏi hệ thống.
+                      </span>
+                      <div className="flex space-x-2.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowDeleteConfirm(false)}
+                          className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-bold rounded-lg border border-slate-800 transition-all cursor-pointer"
+                        >
+                          Hủy
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmDelete(selectedEmployee!.id)}
+                          className="px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg duration-150 active:scale-95 transition-all cursor-pointer shadow-lg shadow-rose-950/20"
+                        >
+                          Xác nhận xóa
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-center w-full">
+                      <div>
+                        {selectedEmployee && (
+                          <button
+                            type="button"
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="px-4 py-2.5 bg-rose-600/10 hover:bg-rose-655 text-rose-400 hover:text-white border border-rose-500/20 text-xs font-bold rounded-xl transition-all duration-150 active:scale-95 cursor-pointer flex items-center space-x-1.5"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Xóa nhân viên</span>
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex space-x-3">
+                        <button
+                          type="button"
+                          onClick={() => setIsModalOpen(false)}
+                          className="px-5 py-2.5 rounded-xl border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white text-sm font-semibold transition-all cursor-pointer"
+                        >
+                          Đóng lại
+                        </button>
+                        {activeFormTab === "profile" && (
+                          <button
+                            type="submit"
+                            className="px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-transform active:scale-95 cursor-pointer shadow-lg glow-purple"
+                          >
+                            Lưu thông tin
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
 

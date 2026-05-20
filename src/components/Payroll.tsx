@@ -19,7 +19,8 @@ import {
   FileText,
   Clock,
   Briefcase,
-  Search
+  Search,
+  Download
 } from "lucide-react";
 import { Employee, Attendance, LeaveRequest, Contract, Payroll as PayrollType } from "../types";
 
@@ -161,6 +162,122 @@ export default function Payroll({
       return p;
     });
     setPayroll(updated);
+  };
+
+  // Update workDays directly in state & recalculate net
+  const handleUpdateWorkDays = (id: string, newDays: number) => {
+    if (newDays < 0 || newDays > 31) return;
+    const updated = payroll.map(p => {
+      if (p.id === id) {
+        const overtimePay = p.overtimeHours * 200000;
+        const netSal = Math.round(
+          (p.basicSalary * (newDays / 22)) + p.allowance + overtimePay - p.deductions - p.advance
+        );
+        return {
+          ...p,
+          workDays: newDays,
+          netSalary: netSal > 0 ? netSal : 0
+        };
+      }
+      return p;
+    });
+    setPayroll(updated);
+  };
+
+  // Update OT hours directly in state & recalculate net
+  const handleUpdateOvertime = (id: string, newHours: number) => {
+    if (newHours < 0) return;
+    const updated = payroll.map(p => {
+      if (p.id === id) {
+        const overtimePay = newHours * 200000;
+        const netSal = Math.round(
+          (p.basicSalary * (p.workDays / 22)) + p.allowance + overtimePay - p.deductions - p.advance
+        );
+        return {
+          ...p,
+          overtimeHours: newHours,
+          netSalary: netSal > 0 ? netSal : 0
+        };
+      }
+      return p;
+    });
+    setPayroll(updated);
+  };
+
+  // Batch approve/pay all Pending records
+  const handleBatchApprove = () => {
+    const updated = payroll.map(p => {
+      if (p.status === "Chờ duyệt") {
+        return {
+          ...p,
+          status: "Đã thanh toán" as const
+        };
+      }
+      return p;
+    });
+    setPayroll(updated);
+    
+    setSyncStatusLog("Chi trả hàng loạt thành công! Đã kích hoạt chuyển khoản thực tế qua cổng ảo cho " + pendingApprovalCount + " nhân sự.");
+  };
+
+  // Export current salary report to CSV/Excel format
+  const handleExportPayroll = () => {
+    const headers = [
+      "ID nhan vien",
+      "Ho va ten",
+      "Chu ky / Che do",
+      `Luong co ban (${viewMode === "yearly" ? "Nam" : "Thang"})`,
+      `Ngay cong (${viewMode === "yearly" ? "Nam" : "Thang"})`,
+      `Tang ca (${viewMode === "yearly" ? "Nam" : "Gio"})`,
+      `Phu cap & OT (${viewMode === "yearly" ? "Nam" : "Thang"})`,
+      `Khau tru (${viewMode === "yearly" ? "Nam" : "Thang"})`,
+      `Tam ung (${viewMode === "yearly" ? "Nam" : "Thang"})`,
+      `Thuc linh (${viewMode === "yearly" ? "Du toan Nam" : "Thang"})`,
+      "Trang thai"
+    ];
+
+    const rows = filteredPayroll.map(pay => {
+      const basic = pay.basicSalary * factor;
+      const workDays = viewMode === "yearly" ? pay.workDays * 12 : pay.workDays;
+      const otHours = viewMode === "yearly" ? pay.overtimeHours * 12 : pay.overtimeHours;
+      const bonusOt = (pay.allowance + pay.overtimeHours * 200000) * factor;
+      const deductions = pay.deductions * factor;
+      const advance = pay.advance * factor;
+      const net = pay.netSalary * factor;
+
+      return [
+        pay.employeeId,
+        `"${pay.employeeName.replace(/"/g, '""')}"`,
+        `"${viewMode === "yearly" ? "Ca nam 12 thang" : pay.month}"`,
+        basic,
+        workDays,
+        otHours,
+        bonusOt,
+        deductions,
+        advance,
+        net,
+        `"${pay.status}"`
+      ];
+    });
+
+    // Excel compatibility: use UTF-8 BOM (\uFEFF)
+    const csvContent = "\uFEFF" + [
+      headers.join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const modeStr = viewMode === "yearly" ? "NAM" : `THANG_${selectedMonth.replace("/", "_")}`;
+    link.download = `Dong_Bo_Bao_Cao_Luong_${modeStr}.csv`;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setSyncStatusLog("Báo cáo lương hiện tại đã được xuất thành công dưới dạng CSV (Tốc độ cao & Đọc được trực tiếp bằng Excel)!");
   };
 
   // Filter lists
@@ -321,6 +438,25 @@ export default function Payroll({
             <option value="Chờ duyệt">Chờ duyệt</option>
             <option value="Đang tính toán">Đang tính toán</option>
           </select>
+
+          {pendingApprovalCount > 0 && (
+            <button
+              onClick={handleBatchApprove}
+              className="px-3.5 h-9 bg-emerald-900/40 border border-emerald-500/20 text-emerald-400 font-bold text-xs rounded-xl flex items-center space-x-1 shadow-lg active:scale-95 duration-150 cursor-pointer"
+            >
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Duyệt Chi Khẩn Cấp ({pendingApprovalCount})</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleExportPayroll}
+            className="px-3.5 h-9 bg-violet-600/20 border border-violet-500/35 hover:bg-violet-600 hover:border-violet-400 text-violet-200 hover:text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 shadow-lg active:scale-95 duration-150 cursor-pointer transition-all"
+            title="Xuất bảng lương ra dạng tệp CSV/Excel"
+          >
+            <Download className="w-3.5 h-3.5 text-violet-300" />
+            <span>Xuất báo cáo lương</span>
+          </button>
         </div>
       </div>
 
@@ -354,11 +490,51 @@ export default function Payroll({
                   <td className="px-5 py-4 text-right font-mono text-white/70">
                     {(pay.basicSalary * factor).toLocaleString()}đ
                   </td>
-                  <td className="px-4 py-4 text-center font-mono font-bold text-violet-400">
-                    {viewMode === "yearly" ? `${pay.workDays * 12} ngày` : `${pay.workDays} / 22`}
+                  <td className="px-4 py-4 text-center">
+                    {viewMode === "yearly" ? (
+                      <span className="font-mono font-bold text-violet-400">{pay.workDays * 12} ngày</span>
+                    ) : (
+                      <div className="inline-flex items-center space-x-1 border border-white/5 bg-slate-950/40 p-1 rounded-lg">
+                        <button
+                          onClick={() => handleUpdateWorkDays(pay.id, pay.workDays - 1)}
+                          disabled={pay.status === "Đã thanh toán" || pay.workDays <= 0}
+                          className="w-5 h-5 bg-white/5 hover:bg-white/10 text-white rounded flex items-center justify-center font-mono text-xs cursor-pointer disabled:opacity-30 disabled:pointer-events-none duration-100"
+                        >
+                          -
+                        </button>
+                        <span className="text-violet-400 font-bold font-mono text-xs w-6 text-center">{pay.workDays}</span>
+                        <button
+                          onClick={() => handleUpdateWorkDays(pay.id, pay.workDays + 1)}
+                          disabled={pay.status === "Đã thanh toán" || pay.workDays >= 31}
+                          className="w-5 h-5 bg-white/5 hover:bg-white/10 text-white rounded flex items-center justify-center font-mono text-xs cursor-pointer disabled:opacity-30 disabled:pointer-events-none duration-100"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
                   </td>
-                  <td className="px-4 py-4 text-center font-mono text-white/50">
-                    {pay.overtimeHours > 0 ? (viewMode === "yearly" ? `+${pay.overtimeHours * 12}h` : `+${pay.overtimeHours}h`) : "-"}
+                  <td className="px-4 py-4 text-center">
+                    {viewMode === "yearly" ? (
+                      <span className="font-mono text-white/55">{pay.overtimeHours > 0 ? `+${pay.overtimeHours * 12}h` : "-"}</span>
+                    ) : (
+                      <div className="inline-flex items-center space-x-1 border border-white/5 bg-slate-950/40 p-1 rounded-lg">
+                        <button
+                          onClick={() => handleUpdateOvertime(pay.id, Math.max(0, pay.overtimeHours - 1))}
+                          disabled={pay.status === "Đã thanh toán" || pay.overtimeHours <= 0}
+                          className="w-5 h-5 bg-white/5 hover:bg-white/10 text-white rounded flex items-center justify-center font-mono text-xs cursor-pointer disabled:opacity-30 disabled:pointer-events-none duration-100"
+                        >
+                          -
+                        </button>
+                        <span className="text-white/70 font-mono text-xs w-6 text-center">{pay.overtimeHours}h</span>
+                        <button
+                          onClick={() => handleUpdateOvertime(pay.id, pay.overtimeHours + 1)}
+                          disabled={pay.status === "Đã thanh toán"}
+                          className="w-5 h-5 bg-white/5 hover:bg-white/10 text-white rounded flex items-center justify-center font-mono text-xs cursor-pointer disabled:opacity-30 duration-100"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-4 text-right font-mono text-emerald-400">
                     +{((pay.allowance + pay.overtimeHours * 200000) * factor).toLocaleString()}đ
