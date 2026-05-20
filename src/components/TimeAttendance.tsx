@@ -21,7 +21,11 @@ import {
   Sparkles,
   AlertTriangle,
   X,
-  Settings
+  Settings,
+  LogIn,
+  LogOut,
+  UserX,
+  Check
 } from "lucide-react";
 import { Employee, Attendance, Payroll as PayrollType } from "../types";
 
@@ -825,16 +829,16 @@ export default function TimeAttendance({
             <div className="overflow-x-auto rounded-xl border border-slate-800">
               <table className="w-full border-collapse text-left text-sm text-slate-300">
                 <thead>
-                  <tr className="bg-slate-950 text-slate-400 border-b border-slate-800 font-mono text-xs uppercase font-bold">
-                    <th className="p-4">Nhân viên</th>
-                    <th className="p-4">Mã NV</th>
-                    <th className="p-4">Giờ Check-in</th>
-                    <th className="p-4">Giờ Check-out</th>
+                  <tr className="bg-slate-950 text-slate-450 border-b border-slate-800 font-mono text-[11px] uppercase font-bold tracking-wider">
+                    <th className="p-4">Nhân sự / Thông tin</th>
+                    <th className="p-4">Chức danh / Ca làm</th>
+                    <th className="p-4">Cổng Check-in</th>
+                    <th className="p-4">Cổng Check-out</th>
                     <th className="p-4">Trạng thái</th>
-                    <th className="p-4">Ghi chú</th>
+                    <th className="p-4">Ghi chú nhật ký</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-800/50">
                   {employees.map((emp) => {
                     const log = attendance.find(a => a.employeeId === emp.id && a.date === todayDateStr);
                     const isEmployeeMatchingQuery = emp.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -855,35 +859,160 @@ export default function TimeAttendance({
 
                     if (!isEmployeeMatchingQuery || !matchesStatusFilter) return null;
 
+                    const avatarLetter = emp.name.split(" ").pop()?.charAt(0) || "N";
+                    
+                    let avatarStyle = "bg-indigo-950/80 text-indigo-405 border border-slate-800";
+                    let glowDot = "bg-slate-500";
+                    
+                    if (statusVal === "Đúng giờ") {
+                      avatarStyle = "bg-emerald-950/80 text-emerald-400 border border-emerald-500/25";
+                      glowDot = "bg-emerald-500 shadow-[0_0_8px_#10b981]";
+                    } else if (statusVal === "Đi muộn") {
+                      avatarStyle = "bg-amber-950/80 text-amber-400 border border-amber-500/25";
+                      glowDot = "bg-amber-500 shadow-[0_0_8px_#f59e0b]";
+                    } else if (statusVal === "Nghỉ phép") {
+                      avatarStyle = "bg-purple-950/80 text-purple-400 border border-purple-500/25";
+                      glowDot = "bg-purple-500 shadow-[0_0_8px_#a855f7]";
+                    } else { // Chưa điểm danh (Vắng mặt)
+                      avatarStyle = "bg-slate-900 text-slate-500 border border-slate-800";
+                      glowDot = "bg-rose-500 shadow-[0_0_8px_#ef4444]";
+                    }
+
                     return (
-                      <tr key={emp.id} className="border-b border-slate-800/60 hover:bg-slate-900/30 transition-colors">
-                        <td className="p-4 flex items-center space-x-2.5">
-                          <div className="w-7 h-7 rounded-lg bg-indigo-950 text-indigo-400 flex items-center justify-center font-bold text-xs font-mono">
-                            {emp.name.split(" ").pop()?.charAt(0)}
-                          </div>
-                          <span className="font-semibold text-white">{emp.name}</span>
-                        </td>
-                        <td className="p-4 font-mono text-xs">{emp.code}</td>
-                        <td className="p-4 font-mono text-emerald-400 font-medium">
-                          {log?.checkIn || <span className="text-slate-650">—</span>}
-                        </td>
-                        <td className="p-4 font-mono text-indigo-405 font-medium">
-                          {log?.checkOut || <span className="text-slate-650">—</span>}
-                        </td>
+                      <tr key={emp.id} className="hover:bg-slate-900/35 transition-colors group">
+                        
+                        {/* 1. Identity & Info Card */}
                         <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          <div className="flex items-center space-x-3.5">
+                            <div className="relative">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm font-mono transition-transform duration-200 group-hover:scale-105 ${avatarStyle}`}>
+                                {avatarLetter}
+                              </div>
+                              {glowDot && (
+                                <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${glowDot}`} />
+                              )}
+                            </div>
+                            <div className="space-y-0.5">
+                              <div className="font-semibold text-white tracking-wide text-sm">{emp.name}</div>
+                              <div className="flex items-center space-x-1.5">
+                                <span className="text-[10px] text-slate-400 font-mono bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">{emp.code}</span>
+                                <span className="text-[10px] text-indigo-400 font-sans font-medium bg-indigo-950 hover:bg-indigo-900/40 px-2 py-0.5 rounded border border-indigo-500/10">{emp.department}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 2. Position & Shift Work details */}
+                        <td className="p-4">
+                          <div className="space-y-1">
+                            <div className="text-xs font-semibold text-slate-200">{emp.position}</div>
+                            <div className="text-[10px] text-slate-500 font-mono flex items-center space-x-1">
+                              <Clock className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                              <span>Ca chuẩn: {shiftConfig.startTime} - {shiftConfig.endTime}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 3. Gate Check-in Timing capsule */}
+                        <td className="p-4">
+                          {log ? (
+                            <div className={`p-2 rounded-xl border flex items-center space-x-2.5 w-max min-w-[150px] ${
+                              log.status === "Đúng giờ" 
+                                ? "bg-emerald-500/5 border-emerald-500/10 text-emerald-400" 
+                                : "bg-amber-500/5 border-amber-500/10 text-amber-550"
+                            }`}>
+                              <LogIn className="w-4 h-4 shrink-0 opacity-80" />
+                              <div>
+                                <div className="font-mono text-xs font-bold tracking-wider">{log.checkIn}</div>
+                                <div className="text-[8px] text-slate-400 font-sans font-medium mt-0.5">
+                                  {log.status === "Đúng giờ" ? "Check-in chuẩn ca" : "Check-in Trễ"}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-2 rounded-xl border border-dashed border-slate-800 bg-slate-950/25 text-slate-500 flex items-center space-x-2.5 w-max min-w-[150px]">
+                              <Clock className="w-4 h-4 shrink-0 opacity-40 text-slate-600" />
+                              <div>
+                                <div className="font-mono text-xs font-normal">--:--:--</div>
+                                <div className="text-[8px] text-slate-550 font-sans mt-0.5">Vắng / Chưa check-in</div>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* 4. Gate Check-out Timing capsule */}
+                        <td className="p-4">
+                          {log ? (
+                            log.checkOut ? (
+                              <div className="p-2 rounded-xl border bg-indigo-500/5 border-indigo-500/10 text-indigo-400 flex items-center space-x-2.5 w-max min-w-[150px]">
+                                <LogOut className="w-4 h-4 shrink-0 opacity-80" />
+                                <div>
+                                  <div className="font-mono text-xs font-bold tracking-wider">{log.checkOut}</div>
+                                  <div className="text-[8px] text-slate-400 font-sans font-medium mt-0.5">Ra ca hoàn thành</div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="p-2 rounded-xl border bg-emerald-500/5 border-emerald-500/10 text-emerald-400/95 flex items-center space-x-2.5 w-max min-w-[150px]">
+                                <span className="relative flex h-2 w-2 shrink-0">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-450 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                <div>
+                                  <div className="font-mono text-xs font-bold tracking-widest text-emerald-400">Đang làm việc</div>
+                                  <div className="text-[8px] text-emerald-500/70 font-sans mt-0.5">Chưa checkout</div>
+                                </div>
+                              </div>
+                            )
+                          ) : (
+                            <div className="p-2 rounded-xl border border-dashed border-slate-800 bg-slate-950/25 text-slate-500 flex items-center space-x-2.5 w-max min-w-[150px]">
+                              <Clock className="w-4 h-4 shrink-0 opacity-40 text-slate-600" />
+                              <div>
+                                <div className="font-mono text-xs font-normal">--:--:--</div>
+                                <div className="text-[8px] text-slate-550 font-sans mt-0.5">Chưa ghi nhận checkout</div>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* 5. Colored Status Tag badge */}
+                        <td className="p-4">
+                          <span className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[11px] font-bold border capitalize ${
                             statusVal === "Đúng giờ" 
-                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-505/20" 
                               : statusVal === "Đi muộn" 
-                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                ? "bg-amber-500/10 text-amber-400 border-amber-505/20"
                                 : statusVal === "Nghỉ phép"
-                                  ? "bg-stone-800 text-stone-400"
-                                  : "bg-rose-500/10 text-rose-400 border border-rose-500/10"
+                                  ? "bg-purple-500/10 text-purple-400 border-purple-505/20"
+                                  : "bg-rose-500/10 text-rose-450 border-rose-505/20"
                           }`}>
-                            {statusVal}
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              statusVal === "Đúng giờ"
+                                ? "bg-emerald-400 animate-pulse"
+                                : statusVal === "Đi muộn"
+                                  ? "bg-amber-400"
+                                  : statusVal === "Nghỉ phép"
+                                    ? "bg-purple-450"
+                                    : "bg-rose-500 animate-pulse"
+                            }`} />
+                            <span>
+                              {statusVal === "Chưa điểm danh" || statusVal === "Vắng mặt" 
+                                ? "Vắng mặt" 
+                                : statusVal}
+                            </span>
                           </span>
                         </td>
-                        <td className="p-4 text-xs text-slate-400">{log?.notes || "—"}</td>
+
+                        {/* 6. Action notes column */}
+                        <td className="p-4 max-w-[200px]">
+                          <div className="text-xs text-slate-400 truncate" title={log?.notes || "—"}>
+                            {log?.notes ? (
+                              <span className="text-slate-300 italic">"{log.notes}"</span>
+                            ) : (
+                              <span className="text-slate-600 font-mono">—</span>
+                            )}
+                          </div>
+                        </td>
+
                       </tr>
                     );
                   })}

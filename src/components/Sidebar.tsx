@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { Employee } from "../types";
+import hrmLogo from "../assets/images/hrm_logo_nodg_1779263978276.png";
 
 interface SidebarProps {
   activeTab: string;
@@ -67,21 +68,31 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
               animate={{ opacity: 1 }}
               className="flex items-center space-x-3"
             >
-              <div className="w-10 h-10 rounded-xl ai-gradient flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                <span className="font-bold text-xl text-white">H</span>
+              <div className="w-10 h-10 rounded-xl bg-white/10 p-0.5 flex items-center justify-center shadow-lg shadow-indigo-500/10 overflow-hidden shrink-0 border border-white/5">
+                <img 
+                  src={hrmLogo} 
+                  alt="HRm Logo" 
+                  className="w-full h-full object-contain rounded-lg"
+                  referrerPolicy="no-referrer" 
+                />
               </div>
               <div>
                 <h1 className="text-base font-display font-bold text-white tracking-tight flex items-baseline">
                   HRM <span className="text-violet-400 ml-1">Pro</span>
                 </h1>
-                <p className="text-[10px] text-white/40 font-mono">Quản lý nhân sự v2.1</p>
+                <p className="text-[10px] text-white/40 font-mono">Quản lý nhân sự v3.0</p>
               </div>
             </motion.div>
           )}
 
           {collapsed && (
-            <div className="mx-auto w-10 h-10 rounded-xl ai-gradient flex items-center justify-center">
-              <span className="font-bold text-xl text-white">H</span>
+            <div className="mx-auto w-10 h-10 rounded-xl bg-white/10 p-0.5 flex items-center justify-center border border-white/5 shadow-lg overflow-hidden">
+              <img 
+                src={hrmLogo} 
+                alt="HRm Logo" 
+                className="w-full h-full object-contain rounded-lg"
+                referrerPolicy="no-referrer" 
+              />
             </div>
           )}
 
@@ -142,7 +153,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
               <span className="status-dot bg-emerald-500 glow-blue animate-pulse" />
               <span className="text-[10px] text-white/50 uppercase font-bold tracking-wider">Trạng thái Hệ thống</span>
             </div>
-            <p className="text-[10px] text-emerald-400 font-bold font-mono">ONLINE // UPDATE - V 2.1 A.P</p>
+            <p className="text-[10px] text-emerald-400 font-bold font-mono">ONLINE // UPDATE - V3.0 ANH.P</p>
           </div>
         )}
 

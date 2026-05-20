@@ -229,6 +229,7 @@ export const initialTasks: HRMTask[] = [
     dueDate: "2026-05-25",
     status: "Đang làm",
     priority: "Cao",
+    progress: 60,
   },
   {
     id: "task02",
@@ -249,6 +250,7 @@ export const initialTasks: HRMTask[] = [
     dueDate: "2026-05-22",
     status: "Đang làm",
     priority: "Cao",
+    progress: 35,
   },
   {
     id: "task04",
@@ -273,6 +275,7 @@ export const initialCandidates: Candidate[] = [
     score: 85,
     notes: "Có 5 năm kinh nghiệm làm việc với ứng dụng React phân tán lớn, kỹ năng giao tiếp tốt. Thể hiện tư duy phân tích hệ thống xuất sắc.",
     cvSummary: "Hồ sơ mạnh, pass kiểm tra thuật toán 90%.",
+    interviewType: "Phỏng vấn Kỹ thuật",
   },
   {
     id: "cand02",
@@ -284,6 +287,7 @@ export const initialCandidates: Candidate[] = [
     score: 75,
     notes: "Kinh nghiệm viết test case tự động với Selenium và Cypress. Vẫn cần cải thiện về lập trình Java/JavaScript.",
     cvSummary: "QA có tinh thần chỉnh chu, tỉ mỉ.",
+    interviewType: "Phỏng vấn Sơ vấn",
   },
   {
     id: "cand03",
@@ -295,6 +299,7 @@ export const initialCandidates: Candidate[] = [
     score: 92,
     notes: "Portfolio cực kỳ ấn tượng, thiết kế hiện đại, bám sát hành vi người dùng Việt. Trình bày dự án súc tích rõ ràng.",
     cvSummary: "Dự kiến onboard đầu tháng sau với mức lương 25M.",
+    interviewType: "Phỏng vấn Văn hóa",
   },
   {
     id: "cand04",
@@ -306,6 +311,7 @@ export const initialCandidates: Candidate[] = [
     score: 65,
     notes: "Tốt nghiệp ngành Quản lý nhân lực đại học Lao động Xã hội, thái độ tích cực, ham học hỏi.",
     cvSummary: "Sinh viên mới ra trường nhiều nhiệt huyết.",
+    interviewType: "Chưa lên lịch",
   },
   {
     id: "cand05",
@@ -317,6 +323,7 @@ export const initialCandidates: Candidate[] = [
     score: 88,
     notes: "Master CI/CD, AWS, Docker và Kubernetes. Xử lý hạ tầng Cloud mượt mà.",
     cvSummary: "Phù hợp kỳ vọng của đội ngũ kỹ thuật Tech Lead.",
+    interviewType: "Phỏng vấn với Giám đốc",
   },
 ];
 

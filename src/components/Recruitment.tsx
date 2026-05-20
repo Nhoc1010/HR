@@ -134,6 +134,17 @@ export default function Recruitment({
   const [candEmail, setCandEmail] = useState("");
   const [candScore, setCandScore] = useState(80);
   const [candNotes, setCandNotes] = useState("");
+  const [candInterviewType, setCandInterviewType] = useState("Phỏng vấn Sơ vấn");
+  const [interviewTypes, setInterviewTypes] = useState<string[]>([
+    "Chưa lên lịch",
+    "Phỏng vấn Sơ vấn",
+    "Phỏng vấn Kỹ thuật",
+    "Phỏng vấn Văn hóa",
+    "Phỏng vấn với Giám đốc",
+    "Phỏng vấn Nhân sự",
+  ]);
+  const [customTypeInput, setCustomTypeInput] = useState("");
+  const [customNewTypeForForm, setCustomNewTypeForForm] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
   const stages: { id: "Ứng tuyển" | "Sàng lọc" | "Phỏng vấn" | "Đề nghị" | "Đã tuyển"; label: string; countColor: string }[] = [
@@ -188,7 +199,8 @@ export default function Recruitment({
       email: candEmail || "—",
       status: "Ứng tuyển",
       score: Number(candScore) || 70,
-      notes: candNotes || "Hồ sơ nộp qua cổng tuyển dụng."
+      notes: candNotes || "Hồ sơ nộp qua cổng tuyển dụng.",
+      interviewType: candInterviewType
     };
 
     setCandidates([...candidates, payload]);
@@ -199,6 +211,7 @@ export default function Recruitment({
     setCandEmail("");
     setCandScore(80);
     setCandNotes("");
+    setCandInterviewType("Phỏng vấn Sơ vấn");
   };
 
   return (
@@ -271,6 +284,24 @@ export default function Recruitment({
                         <p className="text-[10px] text-slate-405 truncate leading-tight">
                           {c.position}
                         </p>
+
+                        {c.interviewType && (
+                          <div className="flex items-center mt-1">
+                            <span className={`inline-flex items-center rounded-md text-[9px] font-semibold px-1.5 py-0.5 border max-w-full truncate ${
+                              c.interviewType === "Chưa lên lịch" 
+                                ? "bg-slate-850 text-slate-400 border-slate-800" 
+                                : c.interviewType.includes("Kỹ thuật")
+                                  ? "bg-violet-500/10 text-violet-400 border-violet-500/20"
+                                  : c.interviewType.includes("Sơ vấn")
+                                    ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                    : c.interviewType.includes("Văn hóa")
+                                      ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                      : "bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20"
+                            }`}>
+                              {c.interviewType}
+                            </span>
+                          </div>
+                        )}
 
                         <div className="text-[9px] text-slate-500 truncate mt-1">
                           {c.notes}
@@ -359,6 +390,83 @@ export default function Recruitment({
                     <span className="inline-block mt-1 text-[10px] px-2 py-0.5 bg-indigo-950 text-indigo-400 rounded-full font-bold">
                       {currentCandidate.status}
                     </span>
+                  </div>
+                  
+                  <div className="col-span-2 p-3 bg-slate-900 border border-slate-850 rounded-xl space-y-1.5 bg-violet-950/10">
+                    <span className="text-[10px] text-violet-400 block uppercase font-bold tracking-wider">Cập nhật Loại Phỏng Vấn (Funnel)</span>
+                    
+                    {currentCandidate.interviewType === "ADD_NEW" ? (
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          placeholder="Nhập tên loại mới (nhấn Enter)..."
+                          value={customTypeInput}
+                          onChange={(e) => setCustomTypeInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const val = customTypeInput.trim();
+                              if (val) {
+                                if (!interviewTypes.includes(val)) {
+                                  setInterviewTypes([...interviewTypes, val]);
+                                }
+                                setCandidates(prev => prev.map(c => c.id === currentCandidate.id ? { ...c, interviewType: val } : c));
+                                setCustomTypeInput("");
+                              }
+                            }
+                          }}
+                          className="w-full bg-slate-950 text-xs px-2.5 py-1.5 rounded-lg border border-violet-500/50 text-slate-200 focus:outline-none focus:border-violet-400 transition"
+                          autoFocus
+                        />
+                        <div className="flex space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const val = customTypeInput.trim();
+                              if (val) {
+                                if (!interviewTypes.includes(val)) {
+                                  setInterviewTypes([...interviewTypes, val]);
+                                }
+                                setCandidates(prev => prev.map(c => c.id === currentCandidate.id ? { ...c, interviewType: val } : c));
+                                setCustomTypeInput("");
+                              } else {
+                                setCandidates(prev => prev.map(c => c.id === currentCandidate.id ? { ...c, interviewType: "Chưa lên lịch" } : c));
+                              }
+                            }}
+                            className="px-3 py-1 bg-violet-600 hover:bg-violet-750 text-white rounded text-[10px] font-semibold cursor-pointer"
+                          >
+                            Xác nhận
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCandidates(prev => prev.map(c => c.id === currentCandidate.id ? { ...c, interviewType: "Chưa lên lịch" } : c));
+                              setCustomTypeInput("");
+                            }}
+                            className="px-3 py-1 bg-slate-800 hover:bg-slate-750 text-slate-300 rounded text-[10px] cursor-pointer"
+                          >
+                            Huỷ
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <select
+                        value={currentCandidate.interviewType || "Chưa lên lịch"}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCandidates(prev => prev.map(c => c.id === currentCandidate.id ? { ...c, interviewType: val } : c));
+                          if (val === "ADD_NEW") {
+                            setCustomTypeInput("");
+                          }
+                        }}
+                        className="w-full bg-slate-950 text-xs px-2.5 py-1.5 rounded-lg border border-slate-800 text-slate-200 focus:outline-none focus:border-violet-500 transition duration-150"
+                      >
+                        {interviewTypes.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                        <option value="ADD_NEW" className="text-violet-400 font-semibold">+ Thêm loại phỏng vấn mới...</option>
+                      </select>
+                    )}
                   </div>
                   
                   <div className="col-span-2 p-3 bg-slate-900 border border-slate-850 rounded-xl space-y-1">
@@ -601,6 +709,82 @@ export default function Recruitment({
                     onChange={(e) => setCandEmail(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-905 border border-slate-800 rounded-xl text-white text-sm focus:outline-none"
                   />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400 font-medium font-sans">Loại phỏng vấn</label>
+                  {candInterviewType === "ADD_NEW" ? (
+                    <div className="space-y-2 mt-1">
+                      <input
+                        type="text"
+                        placeholder="Nhập tên loại phỏng vấn mới (nhấn Enter)..."
+                        value={customNewTypeForForm}
+                        onChange={(e) => setCustomNewTypeForForm(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = customNewTypeForForm.trim();
+                            if (val) {
+                              if (!interviewTypes.includes(val)) {
+                                setInterviewTypes([...interviewTypes, val]);
+                              }
+                              setCandInterviewType(val);
+                              setCustomNewTypeForForm("");
+                            }
+                          }
+                        }}
+                        className="w-full px-3 py-1.5 bg-slate-905 border border-violet-500/50 rounded-lg text-white text-xs focus:outline-none"
+                        autoFocus
+                      />
+                      <div className="flex space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const val = customNewTypeForForm.trim();
+                            if (val) {
+                              if (!interviewTypes.includes(val)) {
+                                setInterviewTypes([...interviewTypes, val]);
+                              }
+                              setCandInterviewType(val);
+                              setCustomNewTypeForForm("");
+                            } else {
+                              setCandInterviewType("Chưa lên lịch");
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-violet-600 hover:bg-violet-750 text-white rounded text-[10px] font-semibold cursor-pointer"
+                        >
+                          Xác nhận
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCandInterviewType("Chưa lên lịch");
+                            setCustomNewTypeForForm("");
+                          }}
+                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-750 text-slate-300 rounded text-[10px] cursor-pointer"
+                        >
+                          Huỷ
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <select
+                      value={candInterviewType}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCandInterviewType(val);
+                        if (val === "ADD_NEW") {
+                          setCustomNewTypeForForm("");
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-slate-905 border border-slate-800 rounded-xl text-white text-xs focus:outline-none"
+                    >
+                      {interviewTypes.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                      <option value="ADD_NEW" className="text-violet-400 font-semibold">+ Thêm loại phỏng vấn mới...</option>
+                    </select>
+                  )}
                 </div>
 
                 <div className="space-y-1">

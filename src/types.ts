@@ -53,6 +53,7 @@ export interface HRMTask {
   dueDate: string;
   status: "Chờ làm" | "Đang làm" | "Hoàn thành";
   priority: "Thấp" | "Trung bình" | "Cao";
+  progress?: number;
 }
 
 export interface Candidate {
@@ -65,6 +66,7 @@ export interface Candidate {
   score: number; // 0-100
   notes: string;
   cvSummary?: string;
+  interviewType?: string;
 }
 
 export interface Message {

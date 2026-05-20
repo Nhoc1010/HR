@@ -41,7 +41,20 @@ export default function Tasks({ employees, tasks, setTasks }: TasksProps) {
   ];
 
   const handleShiftStatus = (id: string, newStatus: "Chờ làm" | "Đang làm" | "Hoàn thành") => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    setTasks(prev => prev.map(t => {
+      if (t.id === id) {
+        let updatedProgress = t.progress;
+        if (newStatus === "Hoàn thành") {
+          updatedProgress = 100;
+        } else if (newStatus === "Chờ làm") {
+          updatedProgress = 0;
+        } else if (newStatus === "Đang làm") {
+          updatedProgress = t.progress && t.progress > 0 && t.progress < 100 ? t.progress : 15;
+        }
+        return { ...t, status: newStatus, progress: updatedProgress };
+      }
+      return t;
+    }));
   };
 
   const handleDeleteTask = (id: string) => {
@@ -168,6 +181,42 @@ export default function Tasks({ employees, tasks, setTasks }: TasksProps) {
                           {task.description}
                         </p>
                       </div>
+
+                      {/* Visual progress bar for 'Đang làm' tasks */}
+                      {task.status === "Đang làm" && (
+                        <div className="space-y-2 py-2 px-2.5 bg-amber-500/5 rounded-xl border border-amber-500/10">
+                          <div className="flex items-center justify-between text-[10px] text-slate-300 font-medium">
+                            <span className="flex items-center">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5 animate-pulse" />
+                              Tiến độ hoàn thành
+                            </span>
+                            <span className="font-mono text-amber-400 font-bold">{task.progress || 0}%</span>
+                          </div>
+                          
+                          <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800/40">
+                            <div 
+                              className="h-full bg-gradient-to-r from-amber-500 to-amber-300 rounded-full transition-all duration-300"
+                              style={{ width: `${task.progress || 0}%` }}
+                            />
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <span className="text-[9px] text-slate-500 font-mono select-none shrink-0">Kéo chỉnh:</span>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              step="5"
+                              value={task.progress || 0}
+                              onChange={(e) => {
+                                const newProgress = Number(e.target.value);
+                                setTasks(prev => prev.map(t => t.id === task.id ? { ...t, progress: newProgress } : t));
+                              }}
+                              className="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-amber-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       {/* Assignee & Due Date banner */}
                       <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
