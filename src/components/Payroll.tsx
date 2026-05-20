@@ -55,6 +55,8 @@ export default function Payroll({
 
   // Recalculately Sync logs
   const [syncStatusLog, setSyncStatusLog] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
 
   // Statistics
   const totalPayrollCost = payroll.reduce((acc, p) => acc + p.netSalary, 0);
@@ -819,16 +821,30 @@ export default function Payroll({
 
                 <div className="flex justify-end gap-2 text-xs">
                   <button
+                    disabled={isExporting}
                     onClick={() => {
-                      // Trigger prompt download of slip
-                      alert("Kết xuất tệp kê khai phiếu lương định dạng PDF thành công!");
+                      setIsExporting(true);
+                      setExportSuccess(false);
+                      setTimeout(() => {
+                        setIsExporting(false);
+                        setExportSuccess(true);
+                        // Clear success state after some time
+                        setTimeout(() => setExportSuccess(false), 3000);
+                      }, 1200);
                     }}
-                    className="px-4 py-2 border border-white/10 hover:bg-white/5 text-white/80 rounded-xl cursor-pointer font-bold"
+                    className={`px-4 py-2 border rounded-xl cursor-pointer font-bold transition-all ${
+                      exportSuccess 
+                        ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400" 
+                        : "border-white/10 hover:bg-white/5 text-white/80"
+                    }`}
                   >
-                    Kết xuất PDF
+                    {isExporting ? "Đang tạo PDF..." : exportSuccess ? "✓ Đã kết xuất PDF" : "Kết xuất PDF"}
                   </button>
                   <button
-                    onClick={() => setSelectedPay(null)}
+                    onClick={() => {
+                      setSelectedPay(null);
+                      setExportSuccess(false);
+                    }}
                     className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl cursor-pointer font-bold"
                   >
                     Đóng lại

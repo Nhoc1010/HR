@@ -37,6 +37,7 @@ export default function LeaveManagement({
   const [endDate, setEndDate] = useState("2026-05-21");
   const [reason, setReason] = useState("");
   const [leaveType, setLeaveType] = useState<"Phép năm" | "Nghỉ ốm" | "Việc riêng" | "Thai sản">("Phép năm");
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Leave action
   const handleDecideLeave = (id: string, decision: "Đã duyệt" | "Bị từ chối") => {
@@ -55,9 +56,10 @@ export default function LeaveManagement({
   const handleCreateRequest = (e: FormEvent) => {
     e.preventDefault();
     if (!selectedEmpId || !reason) {
-      alert("Vui lòng điền đầy đủ thông tin yêu cầu!");
+      setFormError("Vui lòng điền đầy đủ thông tin yêu cầu!");
       return;
     }
+    setFormError(null);
 
     const emp = employees.find(x => x.id === selectedEmpId);
     if (!emp) return;
@@ -92,7 +94,10 @@ export default function LeaveManagement({
           <p className="text-slate-400 text-sm mt-1">Quản lý chế độ nghỉ lễ phép và xem xét duyệt đơn vắng mặt của nhân viên.</p>
         </div>
         <button
-          onClick={() => setIsFormOpen(true)}
+          onClick={() => {
+            setFormError(null);
+            setIsFormOpen(true);
+          }}
           className="px-5 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-medium text-sm flex items-center justify-center space-x-2 shrink-0 transition-all active:scale-95 cursor-pointer glow-purple shadow-lg"
         >
           <Plus className="w-4 h-4" />
@@ -240,6 +245,16 @@ export default function LeaveManagement({
               </div>
 
               <form onSubmit={handleCreateRequest} className="p-5 space-y-4">
+                {formError && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 bg-red-400/10 border border-red-500/20 rounded-xl text-red-400 text-xs flex items-center space-x-2"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{formError}</span>
+                  </motion.div>
+                )}
                 <div className="space-y-1">
                   <label className="text-xs text-slate-400">Chọn Nhân Viên ứng đơn *</label>
                   <select

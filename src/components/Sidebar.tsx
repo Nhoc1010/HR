@@ -17,14 +17,31 @@ import {
   CreditCard
 } from "lucide-react";
 
+import { Employee } from "../types";
+
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
+  currentAdmin?: Employee;
+  onProfileClick?: () => void;
 }
 
-export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed }: SidebarProps) {
+const getInitials = (name: string): string => {
+  if (!name) return "AD";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    const last = parts[parts.length - 1];
+    const prev = parts[parts.length - 2];
+    if (prev && last) {
+      return (prev[0] + last[0]).toUpperCase();
+    }
+  }
+  return name.slice(0, 2).toUpperCase();
+};
+
+export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, currentAdmin, onProfileClick }: SidebarProps) {
   const menuItems = [
     { id: "dashboard", label: "Tổng quan HRM", icon: Gauge },
     { id: "employees", label: "Nhân viên", icon: Users },
@@ -129,17 +146,21 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
           </div>
         )}
 
-        <div className={`p-3 rounded-xl bg-white/5 border border-white/5 flex items-center ${collapsed ? "justify-center" : "space-x-3"}`}>
+        <div 
+          onClick={onProfileClick}
+          className={`p-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-[0.98] border border-white/5 hover:border-violet-500/20 flex items-center cursor-pointer transition-all ${collapsed ? "justify-center" : "space-x-3"}`}
+          title="Nhấp để thay đổi danh tính quản trị viên"
+        >
           <div className="relative">
-            <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center font-display font-bold text-white text-xs ring-2 ring-indigo-500/20">
-              LA
+            <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center font-display font-medium text-white text-xs ring-2 ring-indigo-500/20 transition-all">
+              {currentAdmin ? getInitials(currentAdmin.name) : "LA"}
             </div>
             <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-950" />
           </div>
           {!collapsed && (
             <div className="overflow-hidden">
-              <h2 className="text-xs font-semibold text-white truncate">Phạm Thị Lan Anh</h2>
-              <p className="text-[10px] text-white/40 truncate">Giám đốc nhân sự (HRM)</p>
+              <h2 className="text-xs font-semibold text-white truncate">{currentAdmin?.name || "Phạm Thị Lan Anh"}</h2>
+              <p className="text-[10px] text-white/40 truncate">{currentAdmin?.position || "Giám đốc nhân sự (HRM)"}</p>
             </div>
           )}
         </div>

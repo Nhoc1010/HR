@@ -15,8 +15,118 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-// Enable JSON parsing
-app.use(express.json());
+// 1. HARDEN CORE INFRASTRUCTURE SECURITY --
+// Disable X-Powered-By header to prevent technology stack disclosure
+app.disable("x-powered-by");
+
+// 2. ENHANCE SECURITY RESPONSE HEADERS --
+app.use((req, res, next) => {
+  // Prevent mime-sniffing
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  // Force XSS Filter in browser
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  // Prevent referrer leakage
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  
+  // Immersive Frame & Content Security Policy:
+  // Must allow AI Studio and standard Google environment frameworks to load the iframe while maintaining safety
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' data: https://fonts.gstatic.com; " +
+    "img-src 'self' data: https:; " +
+    "connect-src 'self' https://generativelanguage.googleapis.com; " +
+    "frame-ancestors 'self' https://*.run.app https://ai.studio https://*.google.com https://*.googleusercontent.com"
+  );
+  next();
+});
+
+// 3. SECURE BODY PARSING LIMITS --
+// Restrict incoming payload sizes to prevent memory flooding (DDoS/DoS)
+app.use(express.json({ limit: "1mb" }));
+
+// 4. INPUT DEEP-SANITIZATION MIDDLEWARE --
+// Recursively monitors and scrubs script tags, frames, and dangerous XSS inputs from incoming req.body 
+const sanitizeHTML = (text: string): string => {
+  if (typeof text !== "string") return text;
+  return text
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "[filtered-script-tag]")
+    .replace(/javascript:/gi, "[filtered-js-protocol]")
+    .replace(/onload=/gi, "")
+    .replace(/onerror=/gi, "")
+    .replace(/onclick=/gi, "")
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "[filtered-iframe]");
+};
+
+const sanitizeInputMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const sanitizeDeep = (obj: any): any => {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj === "string") {
+      return sanitizeHTML(obj);
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(item => sanitizeDeep(item));
+    }
+    if (typeof obj === "object") {
+      const sanitizedObj: any = {};
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          sanitizedObj[key] = sanitizeDeep(obj[key]);
+        }
+      }
+      return sanitizedObj;
+    }
+    return obj;
+  };
+
+  if (req.body) {
+    req.body = sanitizeDeep(req.body);
+  }
+  next();
+};
+
+app.use(sanitizeInputMiddleware);
+
+// 5. SLIDING WINDOW RATE LIMITER --
+// Limits malicious flooding or API token drainage
+interface RateLimitRecord {
+  count: number;
+  resetTime: number;
+}
+const rateLimits = new Map<string, RateLimitRecord>();
+
+const createRateLimiter = (limitCount: number, windowMs: number) => {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "unknown-ip";
+    const now = Date.now();
+    
+    let record = rateLimits.get(ip);
+    if (!record) {
+      record = { count: 1, resetTime: now + windowMs };
+      rateLimits.set(ip, record);
+      return next();
+    }
+    
+    if (now > record.resetTime) {
+      record.count = 1;
+      record.resetTime = now + windowMs;
+      return next();
+    }
+    
+    record.count++;
+    if (record.count > limitCount) {
+      return res.status(429).json({
+        error: "Yêu cầu quá thường xuyên. Hệ thống phối hợp ngăn chặn spam & bảo vệ tài nguyên API. Vui lòng quay lại sau 1 phút."
+      });
+    }
+    next();
+  };
+};
+
+const chatLimiter = createRateLimiter(25, 60000); // 25 chats/min
+const documentLimiter = createRateLimiter(15, 60000); // 15 gen/min
 
 // Initialize Gemini API with lazy initialization for enhanced security
 let aiInstance: GoogleGenAI | null = null;
@@ -41,7 +151,7 @@ function getAI(): GoogleGenAI {
 
 // AI endpoints
 // 1. General HRM assistant chat
-app.post("/api/chat", async (req, res) => {
+app.post("/api/chat", chatLimiter, async (req, res) => {
   try {
     const ai = getAI();
     const { message, chatHistory } = req.body;
@@ -74,12 +184,12 @@ Hãy trả lời ngắn gọn, súc tích, chuyên nghiệp bằng tiếng Việ
     res.json({ text: response.text || "Xin lỗi, không có phản hồi." });
   } catch (error: any) {
     console.error("Error in AI Chat:", error);
-    res.status(500).json({ error: error.message || "Lỗi xử lý yêu cầu AI." });
+    res.status(500).json({ error: "Lỗi xử lý đối thoại AI. Vui lòng thiết lập chính xác khóa GEMINI_API_KEY hoặc thử lại sau." });
   }
 });
 
 // 2. Draft labor contract
-app.post("/api/draft-contract", async (req, res) => {
+app.post("/api/draft-contract", documentLimiter, async (req, res) => {
   try {
     const ai = getAI();
     const { employee, contract } = req.body;
@@ -112,12 +222,12 @@ Yêu cầu hợp đồng:
     res.json({ contract: response.text });
   } catch (error: any) {
     console.error("Error drafting contract:", error);
-    res.status(500).json({ error: error.message || "Lỗi tạo hợp đồng." });
+    res.status(500).json({ error: "Lỗi soạn thảo văn bản tự động. Vui lòng thử lại hoặc kiểm tra khóa GEMINI_API_KEY." });
   }
 });
 
 // 3. Evaluate CV & Candidate
-app.post("/api/analyze-candidate", async (req, res) => {
+app.post("/api/analyze-candidate", documentLimiter, async (req, res) => {
   try {
     const ai = getAI();
     const { candidate } = req.body;
@@ -148,8 +258,16 @@ Trình bày bằng Markdown súc tích, chuyên nghiệp.`;
     res.json({ evaluation: response.text });
   } catch (error: any) {
     console.error("Error analyzing candidate:", error);
-    res.status(500).json({ error: error.message || "Lỗi phân tích ứng viên." });
+    res.status(500).json({ error: "Lỗi phân tích ứng viên. Vui lòng kiểm tra lại cấu hình hệ thống." });
   }
+});
+
+// Centralized error-handling middleware for safety (OWASP A04:2021-XML/JSON External Entity/Stack Leak Protection)
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("Unhandled Server Error:", err);
+  res.status(500).json({
+    error: "Phát hiện lỗi không mong muốn từ hệ thống của máy chủ. Yêu cầu đã được ghi nhật ký bảo mật bảo vệ thiết bị."
+  });
 });
 
 // Vite middleware development setup or server static assets for production

@@ -22,6 +22,8 @@ interface DashboardProps {
   leaveRequests: LeaveRequest[];
   candidates: Candidate[];
   setActiveTab: (tab: string) => void;
+  currentAdmin?: Employee;
+  onProfileClick?: () => void;
 }
 
 export default function Dashboard({ 
@@ -29,8 +31,36 @@ export default function Dashboard({
   attendance, 
   leaveRequests, 
   candidates, 
-  setActiveTab
+  setActiveTab,
+  currentAdmin,
+  onProfileClick
 }: DashboardProps) {
+  const getAdminShortName = (): string => {
+    if (!currentAdmin) return "Lan Anh";
+    const name = currentAdmin.name;
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const last = parts[parts.length - 1];
+      const prev = parts[parts.length - 2];
+      if (prev.length <= 4 && last.length <= 4) {
+        return `${prev} ${last}`;
+      }
+      return last;
+    }
+    return name;
+  };
+
+  const getAdminInitials = (): string => {
+    if (!currentAdmin) return "LA";
+    const name = currentAdmin.name;
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const last = parts[parts.length - 1];
+      const prev = parts[parts.length - 2];
+      return (prev[0] + last[0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
   
   // Calculate stats
   const totalEmployees = employees.length;
@@ -75,14 +105,22 @@ export default function Dashboard({
             <span className="text-white font-semibold">Operational Dashboard</span>
           </div>
           <h1 className="text-2xl font-display font-bold text-white tracking-tight mt-1">Hệ thống HRM Dashboard</h1>
-          <p className="text-white/40 text-xs">Chào ngày làm việc mới, Lan Anh. Dưới đây là tóm tắt nhanh về nhân sự hôm nay.</p>
+          <p className="text-white/40 text-xs">
+            Chào ngày làm việc mới, <span className="font-bold text-violet-300">{getAdminShortName()}</span>. Dưới đây là tóm tắt nhanh về nhân sự hôm nay.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="bg-white/5 p-2 rounded-lg border border-white/15 px-4 flex items-center gap-2">
             <span className="text-xs text-white/40">Hệ thống trực tuyến:</span>
             <span className="text-xs font-mono text-violet-400">20-05-2026</span>
           </div>
-          <div className="w-8 h-8 rounded-full bg-violet-600/20 border border-violet-500/50 flex items-center justify-center font-bold text-xs">LA</div>
+          <div 
+            onClick={onProfileClick}
+            className="w-8 h-8 rounded-full bg-violet-600/20 hover:bg-violet-650/40 active:scale-95 border border-violet-500/50 hover:border-violet-400 flex items-center justify-center font-bold text-xs cursor-pointer text-violet-300 transition-all shadow-md shadow-violet-950/20"
+            title="Nhấp để thay đổi danh tính quản trị viên"
+          >
+            {getAdminInitials()}
+          </div>
         </div>
       </header>
 
@@ -99,7 +137,7 @@ export default function Dashboard({
               <AlertCircle className="w-4 h-4 text-violet-400" />
               <span>Báo Cáo Tiêu Điểm Vận Hành Hôm Nay</span>
             </div>
-            <h2 className="text-lg font-bold text-white leading-tight">Chào Lan Anh, hệ thống ghi nhận một số thông số quan trọng cần lưu tâm:</h2>
+            <h2 className="text-lg font-bold text-white leading-tight">Chào <span className="text-amber-400 font-extrabold">{getAdminShortName()}</span>, hệ thống ghi nhận một số thông số quan trọng cần lưu tâm:</h2>
             <ul className="text-sm text-white/90 space-y-1.5 list-disc list-inside">
               <li>Đang tồn đọng <strong className="text-amber-400 font-bold">{pendingLeavesCount} yêu cầu nghỉ phép</strong> chưa duyệt. Hãy rà soát sớm để phòng ban chủ động điều phối công việc.</li>
               <li>Chỉ số đi muộn ngày hôm nay ghi nhận ở mức <strong className="text-amber-400 font-bold">12%</strong>. Đề xuất xem xét báo cáo chi tiết để có chính sách chấn chỉnh phù hợp.</li>

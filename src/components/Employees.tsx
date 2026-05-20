@@ -22,7 +22,8 @@ import {
   RefreshCw,
   Sliders,
   Check,
-  Trash2
+  Trash2,
+  AlertCircle
 } from "lucide-react";
 import { Employee, Contract, Payroll as PayrollType, Attendance } from "../types";
 
@@ -71,6 +72,7 @@ export default function Employees({
   const [contractType, setContractType] = useState("Xác định thời hạn (12 tháng)");
   const [contractStartDate, setContractStartDate] = useState("2026-05-20");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const depts = ["Kỹ thuật", "Marketing", "Kinh doanh", "Nhân sự", "Tài chính", "Hành chính"];
 
@@ -279,6 +281,7 @@ export default function Employees({
   const openFormModal = (emp: Employee | null = null) => {
     setActiveFormTab("profile");
     setShowDeleteConfirm(false);
+    setFormError(null);
     if (emp) {
       setSelectedEmployee(emp);
       setFullName(emp.name);
@@ -322,9 +325,10 @@ export default function Employees({
   const handleSave = (e: FormEvent) => {
     e.preventDefault();
     if (!fullName || !position || !department || !empCode) {
-      alert("Vui lòng điền đủ Họ tên, Mã nhân viên, Chức vụ và Phòng ban!");
+      setFormError("Vui lòng điền đủ Họ tên, Mã nhân viên, Chức vụ và Phòng ban!");
       return;
     }
+    setFormError(null);
 
     const payload: Employee = {
       id: selectedEmployee?.id || `emp-${Date.now()}`,
@@ -631,6 +635,17 @@ export default function Employees({
               {/* Form & Tab Contents */}
               <form onSubmit={handleSave} className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
                 
+                {formError && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 bg-red-500/10 border border-red-500/25 rounded-xl text-red-400 text-xs flex items-center space-x-2"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                    <span>{formError}</span>
+                  </motion.div>
+                )}
+
                 {activeFormTab === "profile" && (
                   <div className="space-y-6">
                     {/* Grid 1: Basic Information */}

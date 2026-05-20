@@ -32,6 +32,7 @@ export default function Tasks({ employees, tasks, setTasks }: TasksProps) {
   const [assignedId, setAssignedId] = useState("");
   const [priority, setPriority] = useState<"Thấp" | "Trung bình" | "Cao">("Trung bình");
   const [dueDate, setDueDate] = useState("2026-05-31");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const columns: { id: "Chờ làm" | "Đang làm" | "Hoàn thành"; label: string; color: string; border: string }[] = [
     { id: "Chờ làm", label: "Chờ làm", color: "bg-slate-950/40", border: "border-indigo-950" },
@@ -50,9 +51,10 @@ export default function Tasks({ employees, tasks, setTasks }: TasksProps) {
   const handleCreateTask = (e: FormEvent) => {
     e.preventDefault();
     if (!taskTitle || !assignedId) {
-      alert("Vui lòng điền tiêu đề công việc và chọn người thực hiện!");
+      setFormError("Vui lòng điền tiêu đề công việc và chọn người thực hiện!");
       return;
     }
+    setFormError(null);
 
     const assignee = employees.find(emp => emp.id === assignedId);
     if (!assignee) return;
@@ -84,7 +86,10 @@ export default function Tasks({ employees, tasks, setTasks }: TasksProps) {
           <p className="text-slate-400 text-sm mt-1">Phân chia nhiệm vụ nội bộ, theo dõi tiến độ xử lý KPI của các phòng ban.</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setFormError(null);
+            setIsModalOpen(true);
+          }}
           className="px-5 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-medium text-sm flex items-center justify-center space-x-2 shrink-0 transition-all active:scale-95 cursor-pointer glow-purple shadow-lg"
         >
           <Plus className="w-4 h-4" />
@@ -240,6 +245,16 @@ export default function Tasks({ employees, tasks, setTasks }: TasksProps) {
               </div>
 
               <form onSubmit={handleCreateTask} className="p-5 space-y-4">
+                {formError && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 bg-red-400/10 border border-red-500/20 rounded-xl text-red-400 text-xs flex items-center space-x-2"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{formError}</span>
+                  </motion.div>
+                )}
                 <div className="space-y-1">
                   <label className="text-xs text-slate-400">Tiêu đề công việc *</label>
                   <input

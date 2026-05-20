@@ -18,7 +18,8 @@ import {
   XCircle,
   HelpCircle,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  AlertCircle
 } from "lucide-react";
 import { Candidate, Employee, Contract, Payroll as PayrollType } from "../types";
 
@@ -133,6 +134,7 @@ export default function Recruitment({
   const [candEmail, setCandEmail] = useState("");
   const [candScore, setCandScore] = useState(80);
   const [candNotes, setCandNotes] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const stages: { id: "Ứng tuyển" | "Sàng lọc" | "Phỏng vấn" | "Đề nghị" | "Đã tuyển"; label: string; countColor: string }[] = [
     { id: "Ứng tuyển", label: "Ứng tuyển", countColor: "bg-blue-955 text-blue-400" },
@@ -173,9 +175,10 @@ export default function Recruitment({
   const handleAddCandidate = (e: FormEvent) => {
     e.preventDefault();
     if (!candName || !candPos) {
-      alert("Vui lòng điền tên ứng viên và vị trí tuyển dụng!");
+      setFormError("Vui lòng điền tên ứng viên và vị trí tuyển dụng!");
       return;
     }
+    setFormError(null);
 
     const payload: Candidate = {
       id: `cand-${Date.now()}`,
@@ -207,7 +210,10 @@ export default function Recruitment({
           <p className="text-slate-400 text-sm mt-1">Quản lý kênh ứng viên, xem xét phân tích CV và đánh giá chất lượng đầu vào.</p>
         </div>
         <button
-          onClick={() => setIsOpenForm(true)}
+          onClick={() => {
+            setFormError(null);
+            setIsOpenForm(true);
+          }}
           className="px-5 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-medium text-sm flex items-center justify-center space-x-2 shrink-0 transition-all active:scale-95 cursor-pointer glow-purple shadow-lg"
         >
           <Plus className="w-4 h-4" />
@@ -528,6 +534,16 @@ export default function Recruitment({
               </div>
 
               <form onSubmit={handleAddCandidate} className="p-5 space-y-4">
+                {formError && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 bg-red-400/10 border border-red-500/20 rounded-xl text-red-400 text-xs flex items-center space-x-2"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{formError}</span>
+                  </motion.div>
+                )}
                 <div className="space-y-1">
                   <label className="text-xs text-slate-400 font-medium font-sans">Tên ứng viên *</label>
                   <input
