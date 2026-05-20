@@ -23,7 +23,14 @@ import {
   Sliders,
   Check,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  Activity,
+  Clock,
+  Award,
+  History,
+  UserCheck,
+  DollarSign
 } from "lucide-react";
 import { Employee, Contract, Payroll as PayrollType, Attendance } from "../types";
 
@@ -54,6 +61,11 @@ export default function Employees({
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeFormTab, setActiveFormTab] = useState<"profile" | "history" | "training">("profile");
+
+  // Detailed view modal states
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
+  const [detailTab, setDetailTab] = useState<"profile" | "contracts" | "payroll" | "attendance">("profile");
 
   // Form states
   const [fullName, setFullName] = useState("");
@@ -489,8 +501,12 @@ export default function Employees({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 whileHover={{ y: -4 }}
-                className="card-3d p-6 rounded-2xl flex flex-col justify-between cursor-pointer group transition-all duration-300 relative hover:border-white/15"
-                onClick={() => openFormModal(emp)}
+                className="card-3d p-6 rounded-2xl flex flex-col justify-between cursor-pointer group transition-all duration-300 relative hover:border-white/15 animate-fade-in"
+                onClick={() => {
+                  setDetailEmployee(emp);
+                  setDetailTab("profile");
+                  setIsDetailModalOpen(true);
+                }}
                 key={emp.id}
               >
                 <div className="space-y-4">
@@ -531,9 +547,21 @@ export default function Employees({
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-white/40">
-                  <span>Vào làm: <strong className="text-white/60 font-mono">{emp.startDate}</strong></span>
-                  <span className="text-violet-400 hover:text-violet-300 font-semibold transition-colors">Chỉnh sửa</span>
+                <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[11px]">
+                  <span className="text-white/40">Vào làm: <strong className="text-white/60 font-mono">{emp.startDate}</strong></span>
+                  <div className="flex items-center space-x-2.5">
+                    <span className="text-violet-400 hover:text-violet-300 font-semibold transition-all">Xem chi tiết</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openFormModal(emp);
+                      }}
+                      className="text-white/50 hover:text-white px-2 py-1 rounded bg-white/5 hover:bg-slate-800 transition-all font-medium border border-white/5"
+                    >
+                      Sửa
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             );
@@ -1156,6 +1184,545 @@ export default function Employees({
                     </div>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Detailed Employee Dossier Modal */}
+      <AnimatePresence>
+        {isDetailModalOpen && detailEmployee && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl relative"
+            >
+              {/* Profile Background & Close */}
+              <div className="p-8 bg-slate-900 border-b border-slate-800 relative">
+                <button
+                  type="button"
+                  onClick={() => setIsDetailModalOpen(false)}
+                  className="absolute right-6 top-6 p-2 rounded-xl bg-white/5 hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer border border-white/5"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+                  {/* Photo/Initials */}
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center font-display font-bold text-3xl shrink-0 shadow-xl shadow-violet-950/20 ring-4 ring-violet-500/10">
+                    {detailEmployee.name.split(" ").slice(-2).map(n => n[0]).join("").toUpperCase()}
+                  </div>
+
+                  <div className="space-y-1.5 flex-1">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <h2 className="text-2xl font-bold text-white tracking-tight leading-none" id="detail-employee-name">{detailEmployee.name}</h2>
+                      <span className={`text-xs px-3 py-1 rounded-full font-semibold border ${
+                        detailEmployee.status === "Đang làm" 
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.15)]" 
+                          : detailEmployee.status === "Nghỉ phép" 
+                            ? "bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.15)]" 
+                            : "bg-white/5 text-white/40 border-white/5"
+                      }`}>
+                        {detailEmployee.status}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-violet-400 font-mono font-medium">{detailEmployee.code} • &nbsp;
+                      <span className="text-slate-400 font-sans">{detailEmployee.position} &nbsp;|&nbsp; Phòng {detailEmployee.department}</span>
+                    </p>
+
+                    <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-400 pt-1">
+                      <div className="flex items-center space-x-1.5">
+                        <Mail className="w-3.5 h-3.5 text-slate-500" />
+                        <span>{detailEmployee.email}</span>
+                      </div>
+                      <div className="flex items-center space-x-1.5">
+                        <Phone className="w-3.5 h-3.5 text-slate-500" />
+                        <span>{detailEmployee.phone}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Navigation Tabs */}
+              <div className="flex border-b border-slate-800 bg-slate-950/40 px-8 pt-2 gap-6 text-sm font-semibold select-none overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => setDetailTab("profile")}
+                  className={`py-3.5 px-1 border-b-2 transition-all flex items-center space-x-2 cursor-pointer shrink-0 ${
+                    detailTab === "profile" 
+                      ? "border-violet-500 text-white" 
+                      : "border-transparent text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <User className="w-4 h-4" />
+                  <span>Hồ Sơ Lý Lịch</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailTab("contracts")}
+                  className={`py-3.5 px-1 border-b-2 transition-all flex items-center space-x-2 cursor-pointer shrink-0 ${
+                    detailTab === "contracts" 
+                      ? "border-violet-500 text-white" 
+                      : "border-transparent text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <FileText className="w-4 h-4 text-slate-500" />
+                  <span>Sự Nghiệp & HĐLĐ</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailTab("payroll")}
+                  className={`py-3.5 px-1 border-b-2 transition-all flex items-center space-x-2 cursor-pointer shrink-0 ${
+                    detailTab === "payroll" 
+                      ? "border-violet-500 text-white" 
+                      : "border-transparent text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <DollarSign className="w-4 h-4" />
+                  <span>Lịch Sử Lương Bổng</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailTab("attendance")}
+                  className={`py-3.5 px-1 border-b-2 transition-all flex items-center space-x-2 cursor-pointer shrink-0 ${
+                    detailTab === "attendance" 
+                      ? "border-violet-500 text-white" 
+                      : "border-transparent text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Clock className="w-4 h-4" />
+                  <span>Nhật Ký Chấm Công</span>
+                </button>
+              </div>
+
+              {/* Dossier Content */}
+              <div className="p-8 max-h-[60vh] overflow-y-auto space-y-6 bg-[#0B0D12]">
+                
+                {/* 1. PROFILE TAB */}
+                {detailTab === "profile" && (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-xs font-bold text-violet-400 uppercase tracking-widest mb-4 flex items-center space-x-2">
+                        <span className="w-1.5 h-3 bg-violet-500 rounded-full" />
+                        <span>HỒ SƠ CÁ NHÂN & LIÊN LẠC</span>
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="p-4 bg-slate-900/30 border border-slate-800 rounded-2xl space-y-1">
+                          <span className="text-[10px] text-slate-500 uppercase font-bold">Họ và tên</span>
+                          <p className="text-sm text-white font-medium">{detailEmployee.name}</p>
+                        </div>
+
+                        <div className="p-4 bg-slate-900/30 border border-slate-800 rounded-2xl space-y-1">
+                          <span className="text-[10px] text-slate-500 uppercase font-bold">Mã số nhân sự</span>
+                          <p className="text-sm font-mono text-white font-medium">{detailEmployee.code}</p>
+                        </div>
+
+                        <div className="p-4 bg-slate-900/30 border border-slate-800 rounded-2xl space-y-1">
+                          <span className="text-[10px] text-slate-500 uppercase font-bold">Chức vụ chuyên môn</span>
+                          <p className="text-sm text-white font-medium">{detailEmployee.position}</p>
+                        </div>
+
+                        <div className="p-4 bg-slate-900/30 border border-slate-800 rounded-2xl space-y-1">
+                          <span className="text-[10px] text-slate-500 uppercase font-bold">Bộ phận / Phòng ban</span>
+                          <p className="text-sm text-white font-medium">{detailEmployee.department}</p>
+                        </div>
+
+                        <div className="p-4 bg-slate-900/30 border border-slate-800 rounded-2xl space-y-1">
+                          <span className="text-[10px] text-slate-500 uppercase font-bold">Hộp thư Email</span>
+                          <p className="text-sm text-white font-medium">{detailEmployee.email}</p>
+                        </div>
+
+                        <div className="p-4 bg-slate-900/30 border border-slate-800 rounded-2xl space-y-1">
+                          <span className="text-[10px] text-slate-500 uppercase font-bold">Số điện thoại liên hệ</span>
+                          <p className="text-sm text-white font-medium">{detailEmployee.phone}</p>
+                        </div>
+
+                        <div className="p-4 bg-slate-900/30 border border-slate-800 rounded-2xl space-y-1">
+                          <span className="text-[10px] text-slate-500 uppercase font-bold">Ngày vào làm chính thức</span>
+                          <p className="text-sm font-mono text-white font-medium">{detailEmployee.startDate}</p>
+                        </div>
+
+                        <div className="p-4 bg-slate-900/30 border border-slate-800 rounded-2xl space-y-1">
+                          <span className="text-[10px] text-slate-500 uppercase font-bold">Ngày sinh & Giới tính</span>
+                          <p className="text-sm text-white font-medium">{detailEmployee.birthDate} • {detailEmployee.gender}</p>
+                        </div>
+
+                        <div className="p-4 bg-slate-900/30 border border-slate-800 rounded-2xl space-y-1 md:col-span-2">
+                          <span className="text-[10px] text-slate-500 uppercase font-bold">Địa chỉ thường trú</span>
+                          <div className="flex items-start space-x-2 pt-1">
+                            <MapPin className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                            <p className="text-sm text-white">{detailEmployee.address || "Chưa cập nhật địa chỉ thường trú"}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-indigo-950/10 border border-indigo-500/10 space-y-4">
+                      <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center space-x-2">
+                        <CreditCard className="w-4 h-4" />
+                        <span>Bảo hiểm xã hội & Định danh</span>
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] text-slate-500 uppercase font-bold">Mã số BHXH</span>
+                          <p className="text-xs text-white font-mono">{detailEmployee.bhxhNumber || "Chưa thiết lập số định danh"}</p>
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] text-slate-500 uppercase font-bold">Ngày bắt đầu tham gia</span>
+                          <p className="text-xs text-white font-mono">{detailEmployee.bhxhJoinDate || "Chưa ghi nhận ngày tham gia"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. CONTRACTS TAB */}
+                {detailTab === "contracts" && (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-xs font-bold text-violet-400 uppercase tracking-widest flex items-center space-x-2">
+                        <span className="w-1.5 h-3 bg-violet-500 rounded-full" />
+                        <span>SỰ NGHIỆP & LỊCH SỬ HỢP ĐỒNG LAO ĐỘNG</span>
+                      </h3>
+                      <span className="text-[10px] bg-white/5 border border-white/10 text-white/60 px-3 py-1 rounded font-mono">
+                        {contracts.filter(c => c.employeeId === detailEmployee.id).length} hợp đồng
+                      </span>
+                    </div>
+
+                    {contracts.filter(c => c.employeeId === detailEmployee.id).length > 0 ? (
+                      <div className="space-y-6">
+                        {contracts.filter(c => c.employeeId === detailEmployee.id).map((contract) => (
+                          <div key={contract.id} className="p-6 bg-[#13151D] border border-slate-800 rounded-2xl space-y-5">
+                            {/* Contract Header */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
+                              <div className="space-y-1">
+                                <span className="text-[10px] bg-violet-500/10 text-violet-400 border border-violet-500/20 px-2.5 py-1 rounded-full font-bold font-mono">
+                                  HĐLĐ • {contract.id.substring(0, 10).toUpperCase()}
+                                </span>
+                                <h4 className="text-base font-bold text-white pt-1">{contract.type}</h4>
+                              </div>
+                              <span className={`px-3 py-1 rounded-full text-xs font-semibold self-start sm:self-center border ${
+                                contract.status === "Đang hiệu lực" 
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.1)]" 
+                                  : "bg-white/5 text-white/40 border-white/5"
+                              }`}>
+                                {contract.status}
+                              </span>
+                            </div>
+
+                            {/* Details Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                              <div>
+                                <span className="text-slate-500 block font-medium">Bắt đầu hiệu lực</span>
+                                <span className="text-white font-mono font-bold mt-0.5 block">{contract.startDate}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 block font-medium">Thời hạn hợp đồng</span>
+                                <span className="text-white font-mono mt-0.5 block">{contract.endDate}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 block font-medium">Mức lương cơ bản</span>
+                                <span className="text-white font-mono font-medium text-emerald-400 mt-0.5 block">
+                                  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(contract.basicSalary)}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 block font-medium">Phụ cấp được nhận</span>
+                                <span className="text-white font-mono font-medium text-indigo-400 mt-0.5 block">
+                                  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(contract.allowance)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Contract Timeline History */}
+                            {contract.history && contract.history.length > 0 && (
+                              <div className="pt-4 border-t border-white/5">
+                                <span className="text-[10px] text-slate-500 uppercase font-bold block mb-3 tracking-wider">Tiến trình lịch sử</span>
+                                <div className="space-y-3.5 pl-1">
+                                  {contract.history.map((hist, idx) => (
+                                    <div key={idx} className="flex space-x-3 text-xs">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-1.5 shrink-0" />
+                                      <div className="space-y-0.5">
+                                        <div className="flex items-center space-x-2">
+                                          <span className="font-bold text-white">{hist.action}</span>
+                                          <span className="text-[10px] text-slate-500 font-mono">{hist.date}</span>
+                                        </div>
+                                        <p className="text-slate-400 leading-relaxed text-[11px]">{hist.note}</p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-12 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
+                        <FileText className="w-10 h-10 text-white/10 mx-auto mb-2" />
+                        <p className="text-white/40 text-sm font-medium">Chưa có thông tin hợp đồng được định dạng cho nhân sự này</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 3. PAYROLL TAB */}
+                {detailTab === "payroll" && (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-xs font-bold text-violet-400 uppercase tracking-widest flex items-center space-x-2">
+                        <span className="w-1.5 h-3 bg-violet-500 rounded-full" />
+                        <span>NHẬN ĐỊNH LƯƠNG BỔNG & PHIẾU LƯƠNG ĐỊNH KỲ</span>
+                      </h3>
+                      <span className="text-[10px] bg-white/5 border border-white/10 text-white/60 px-3 py-1 rounded font-mono">
+                        {payroll.filter(p => p.employeeId === detailEmployee.id).length} bảng lương
+                      </span>
+                    </div>
+
+                    {payroll.filter(p => p.employeeId === detailEmployee.id).length > 0 ? (
+                      <div className="space-y-5">
+                        {/* Summary overview card of the first item (typically current month) */}
+                        {(() => {
+                          const records = payroll.filter(p => p.employeeId === detailEmployee.id);
+                          const latest = records[0]; 
+                          return (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="bg-emerald-950/10 border border-emerald-500/10 p-5 rounded-2xl text-left space-y-1">
+                                <span className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">Thực lĩnh gần nhất ({latest.month})</span>
+                                <div className="text-emerald-400 text-lg md:text-xl font-bold font-mono">
+                                  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(latest.netSalary)}
+                                </div>
+                                <p className="text-[10px] text-zinc-500">Đã bao gồm phụ cấp & bảo hiểm xã hội chuẩn.</p>
+                              </div>
+
+                              <div className="bg-slate-900/30 border border-slate-800 p-5 rounded-2xl text-left space-y-1">
+                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Phụ cấp & Thêm giờ</span>
+                                <div className="text-white text-lg font-bold font-mono">
+                                  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(latest.allowance)}
+                                </div>
+                                <p className="text-[10px] text-zinc-500">Làm thêm giờ được quy đổi: {latest.overtimeHours} giờ.</p>
+                              </div>
+
+                              <div className="bg-slate-900/30 border border-slate-800 p-5 rounded-2xl text-left space-y-1">
+                                <span className="text-[10px] text-red-400/80 uppercase font-bold tracking-wider">Khấu trừ tích luỹ</span>
+                                <div className="text-red-400/90 text-lg font-bold font-mono">
+                                  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(latest.deductions)}
+                                </div>
+                                <p className="text-[10px] text-zinc-500">Bao gồm đi muộn, đóng phạt hành chính.</p>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Payroll Table */}
+                        <div className="overflow-x-auto border border-slate-800 rounded-2xl bg-slate-950/40">
+                          <table className="w-full text-xs text-left text-slate-300">
+                            <thead className="text-[10px] text-slate-400 uppercase font-bold bg-slate-900/60 border-b border-slate-800">
+                              <tr>
+                                <th className="px-5 py-4">Kỳ lương</th>
+                                <th className="px-4 py-4">Lương cơ bản</th>
+                                <th className="px-4 py-4">Công thực tế</th>
+                                <th className="px-4 py-4">OT</th>
+                                <th className="px-4 py-4">Phụ cấp</th>
+                                <th className="px-4 py-4 text-red-400/80">Khấu trừ</th>
+                                <th className="px-4 py-4 text-emerald-400 font-bold">Thành tiền</th>
+                                <th className="px-5 py-4 text-right">Trạng thái</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800 bg-slate-900/10">
+                              {payroll.filter(p => p.employeeId === detailEmployee.id).map((pay) => (
+                                <tr key={pay.id} className="hover:bg-slate-900/40 transition-colors">
+                                  <td className="px-5 py-4 font-mono font-bold text-white">{pay.month}</td>
+                                  <td className="px-4 py-4 font-mono border-none">
+                                    {new Intl.NumberFormat("vi-VN").format(pay.basicSalary)}
+                                  </td>
+                                  <td className="px-4 py-4 font-mono font-bold text-center">{pay.workDays} ngày</td>
+                                  <td className="px-4 py-4 font-mono text-center">{pay.overtimeHours}h</td>
+                                  <td className="px-4 py-4 font-mono text-emerald-500/80">
+                                    +{new Intl.NumberFormat("vi-VN").format(pay.allowance)}
+                                  </td>
+                                  <td className="px-4 py-4 font-mono text-red-400/80">
+                                    -{new Intl.NumberFormat("vi-VN").format(pay.deductions)}
+                                  </td>
+                                  <td className="px-4 py-4 font-mono font-bold text-emerald-400">
+                                    {new Intl.NumberFormat("vi-VN").format(pay.netSalary)}
+                                  </td>
+                                  <td className="px-5 py-4 text-right">
+                                    <span className={`px-2.5 py-1 rounded text-[10px] font-semibold ${
+                                      pay.status === "Đã thanh toán" 
+                                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
+                                        : pay.status === "Chờ duyệt" 
+                                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" 
+                                          : "bg-white/5 text-slate-400 border border-white/5"
+                                    }`}>
+                                      {pay.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-12 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
+                        <DollarSign className="w-10 h-10 text-white/10 mx-auto mb-2" />
+                        <p className="text-white/40 text-sm font-medium">Nhân sự này chưa phát sinh kì lương tích lũy trong hệ thống bộ lọc</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 4. ATTENDANCE TAB */}
+                {detailTab === "attendance" && (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-xs font-bold text-violet-400 uppercase tracking-widest flex items-center space-x-2">
+                        <span className="w-1.5 h-3 bg-violet-500 rounded-full" />
+                        <span>PHƯƠNG ÁN ĐỒNG BỘ CHẤM CÔNG VÀ SỰ DIỆN DIỆN</span>
+                      </h3>
+                      <span className="text-[10px] bg-white/5 border border-white/10 text-white/60 px-3 py-1 rounded font-mono">
+                        {attendance.filter(a => a.employeeId === detailEmployee.id).length} lượt chấm công
+                      </span>
+                    </div>
+
+                    {(() => {
+                      const logs = attendance.filter(a => a.employeeId === detailEmployee.id);
+                      if (logs.length === 0) {
+                        return (
+                          <div className="py-12 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
+                            <Clock className="w-10 h-10 text-white/10 mx-auto mb-2" />
+                            <p className="text-white/40 text-sm font-medium">Không tìm thấy dữ liệu điểm danh nào trong lịch sử chấm công</p>
+                          </div>
+                        );
+                      }
+
+                      // Compute stats
+                      const totalCount = logs.length;
+                      const onTimeCount = logs.filter(a => a.status === "Đúng giờ").length;
+                      const lateCount = logs.filter(a => a.status === "Đi muộn").length;
+                      const leaveCount = logs.filter(a => a.status === "Nghỉ phép").length;
+
+                      const activeCheckIns = onTimeCount + lateCount;
+                      const punctuality = totalCount > 0 && activeCheckIns > 0
+                        ? ((onTimeCount / activeCheckIns) * 100).toFixed(0) + "%"
+                        : "100%";
+
+                      return (
+                        <div className="space-y-6">
+                          {/* Stats Grid */}
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+                            <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 text-left">
+                              <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider block">Tổng ngày công</span>
+                              <span className="text-lg font-bold text-white font-mono mt-1 block">{totalCount} ngày</span>
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 text-left">
+                              <span className="text-[9px] text-emerald-400 uppercase font-bold tracking-wider block">Đúng giờ</span>
+                              <span className="text-lg font-bold text-emerald-400 font-mono mt-1 block">{onTimeCount} ngày</span>
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 text-left">
+                              <span className="text-[9px] text-amber-500 uppercase font-bold tracking-wider block">Đi muộn</span>
+                              <span className="text-lg font-bold text-amber-500 font-mono mt-1 block">{lateCount} ngày</span>
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 text-left">
+                              <span className="text-[9px] text-indigo-400 uppercase font-bold tracking-wider block">Nghỉ phép</span>
+                              <span className="text-lg font-bold text-indigo-400 font-mono mt-1 block">{leaveCount} ngày</span>
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-left col-span-2 md:col-span-1">
+                              <span className="text-[9px] text-emerald-400 uppercase font-bold tracking-wider block">Tỉ lệ đúng giờ</span>
+                              <span className="text-lg font-bold text-white font-mono mt-1 block">{punctuality}</span>
+                            </div>
+                          </div>
+
+                          {/* Attendance Log Table */}
+                          <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950/40">
+                            <table className="w-full text-xs text-left text-slate-300">
+                              <thead className="text-[10px] text-slate-400 uppercase font-bold bg-slate-900/60 border-b border-slate-800">
+                                <tr>
+                                  <th className="px-5 py-3.5">Ngày</th>
+                                  <th className="px-4 py-3.5">Giờ vào (Check-In)</th>
+                                  <th className="px-4 py-3.5">Giờ ra (Check-Out)</th>
+                                  <th className="px-4 py-3.5">Trạng thái</th>
+                                  <th className="px-5 py-3.5 text-right">Ghi chú</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-800 bg-slate-900/10 bg-none">
+                                {[...logs].sort((a,b) => b.date.localeCompare(a.date)).map((log) => (
+                                  <tr key={log.id} className="hover:bg-slate-900/40 transition-colors">
+                                    <td className="px-5 py-3.5 font-mono text-white font-semibold">{log.date}</td>
+                                    <td className="px-4 py-3.5 font-mono text-emerald-400/90 border-none">{log.checkIn || "—"}</td>
+                                    <td className="px-4 py-3.5 font-mono text-indigo-400/95 border-none">{log.checkOut || "—"}</td>
+                                    <td className="px-4 py-3.5 border-none">
+                                      <span className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded text-[10px] font-semibold border ${
+                                        log.status === "Đúng giờ" 
+                                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                                          : log.status === "Đi muộn"
+                                            ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                            : log.status === "Nghỉ phép"
+                                              ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                                              : "bg-red-500/10 text-red-400 border-red-500/20"
+                                      }`}>
+                                        <span className={`w-1 h-1 rounded-full ${
+                                          log.status === "Đúng giờ" 
+                                            ? "bg-emerald-400" 
+                                            : log.status === "Đi muộn"
+                                              ? "bg-amber-400"
+                                              : log.status === "Nghỉ phép"
+                                                ? "bg-indigo-400"
+                                                : "bg-red-400"
+                                        }`} />
+                                        <span>{log.status}</span>
+                                      </span>
+                                    </td>
+                                    <td className="px-5 py-3.5 text-slate-400 text-right italic font-sans truncate max-w-[150px] border-none">
+                                      {log.notes || "—"}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              {/* Dossier Footer Actions */}
+              <div className="p-6 bg-slate-900 border-t border-slate-800 flex items-center justify-between">
+                <span className="text-xs text-slate-400 max-w-sm hidden sm:inline">Hồ sơ này chứa các dữ liệu bảo mật tuân thủ chính sách Bảo vệ Thông tin cá nhân.</span>
+                <div className="flex space-x-3 w-full sm:w-auto justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDetailModalOpen(false);
+                      openFormModal(detailEmployee);
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs transition-transform active:scale-95 cursor-pointer glow-purple"
+                  >
+                    Chỉnh sửa hồ sơ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsDetailModalOpen(false)}
+                    className="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-white/5 transition-all cursor-pointer"
+                  >
+                    Đóng
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

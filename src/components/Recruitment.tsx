@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, Dispatch, SetStateAction, FormEvent } from "react";
+import { useState, Dispatch, SetStateAction, FormEvent, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Network, 
@@ -135,14 +135,29 @@ export default function Recruitment({
   const [candScore, setCandScore] = useState(80);
   const [candNotes, setCandNotes] = useState("");
   const [candInterviewType, setCandInterviewType] = useState("Phỏng vấn Sơ vấn");
-  const [interviewTypes, setInterviewTypes] = useState<string[]>([
-    "Chưa lên lịch",
-    "Phỏng vấn Sơ vấn",
-    "Phỏng vấn Kỹ thuật",
-    "Phỏng vấn Văn hóa",
-    "Phỏng vấn với Giám đốc",
-    "Phỏng vấn Nhân sự",
-  ]);
+  const [interviewTypes, setInterviewTypes] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem("hrm_interview_types");
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return [
+      "Chưa lên lịch",
+      "Phỏng vấn Sơ vấn",
+      "Phỏng vấn Kỹ thuật",
+      "Phỏng vấn Văn hóa",
+      "Phỏng vấn với Giám đốc",
+      "Phỏng vấn Nhân sự",
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem("hrm_interview_types", JSON.stringify(interviewTypes));
+  }, [interviewTypes]);
+
   const [customTypeInput, setCustomTypeInput] = useState("");
   const [customNewTypeForForm, setCustomNewTypeForForm] = useState("");
   const [formError, setFormError] = useState<string | null>(null);

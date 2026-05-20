@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, User, Mail, Phone, Shield, Check } from "lucide-react";
 import Sidebar from "./components/Sidebar";
@@ -40,39 +40,104 @@ const getInitials = (name: string): string => {
   return name.slice(0, 2).toUpperCase();
 };
 
+const getLocalStorageItem = <T,>(key: string, defaultValue: T): T => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (error) {
+    console.error(`Error reading localStorage key "${key}":`, error);
+    return defaultValue;
+  }
+};
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return sessionStorage.getItem("hrm_prefix_is_logged_in") === "true";
+    return localStorage.getItem("hrm_prefix_is_logged_in") === "true";
   });
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [collapsed, setCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem("hrm_prefix_active_tab") || "dashboard";
+  });
+  const [collapsed, setCollapsed] = useState(() => {
+    return localStorage.getItem("hrm_prefix_collapsed") === "true";
+  });
   
   // App-level Shared State
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
-  const [attendance, setAttendance] = useState<Attendance[]>(initialAttendance);
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(initialLeaveRequests);
-  const [tasks, setTasks] = useState<HRMTask[]>(initialTasks);
-  const [candidates, setCandidates] = useState<Candidate[]>(initialCandidates);
-  const [contracts, setContracts] = useState<Contract[]>(initialContracts);
-  const [payroll, setPayroll] = useState<PayrollType[]>(initialPayroll);
+  const [employees, setEmployees] = useState<Employee[]>(() => 
+    getLocalStorageItem("hrm_employees", initialEmployees)
+  );
+  const [attendance, setAttendance] = useState<Attendance[]>(() => 
+    getLocalStorageItem("hrm_attendance", initialAttendance)
+  );
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(() => 
+    getLocalStorageItem("hrm_leave_requests", initialLeaveRequests)
+  );
+  const [tasks, setTasks] = useState<HRMTask[]>(() => 
+    getLocalStorageItem("hrm_tasks", initialTasks)
+  );
+  const [candidates, setCandidates] = useState<Candidate[]>(() => 
+    getLocalStorageItem("hrm_candidates", initialCandidates)
+  );
+  const [contracts, setContracts] = useState<Contract[]>(() => 
+    getLocalStorageItem("hrm_contracts", initialContracts)
+  );
+  const [payroll, setPayroll] = useState<PayrollType[]>(() => 
+    getLocalStorageItem("hrm_payroll", initialPayroll)
+  );
+
+  // Synchronize changes dynamically to Local Storage (keeps persistence across closes)
+  useEffect(() => {
+    localStorage.setItem("hrm_employees", JSON.stringify(employees));
+  }, [employees]);
+
+  useEffect(() => {
+    localStorage.setItem("hrm_attendance", JSON.stringify(attendance));
+  }, [attendance]);
+
+  useEffect(() => {
+    localStorage.setItem("hrm_leave_requests", JSON.stringify(leaveRequests));
+  }, [leaveRequests]);
+
+  useEffect(() => {
+    localStorage.setItem("hrm_tasks", JSON.stringify(tasks));
+  }, [tasks]);
+
+  useEffect(() => {
+    localStorage.setItem("hrm_candidates", JSON.stringify(candidates));
+  }, [candidates]);
+
+  useEffect(() => {
+    localStorage.setItem("hrm_contracts", JSON.stringify(contracts));
+  }, [contracts]);
+
+  useEffect(() => {
+    localStorage.setItem("hrm_payroll", JSON.stringify(payroll));
+  }, [payroll]);
+
+  useEffect(() => {
+    localStorage.setItem("hrm_prefix_active_tab", activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem("hrm_prefix_collapsed", String(collapsed));
+  }, [collapsed]);
 
   // Active Admin Session State
   const [currentAdminId, setCurrentAdminId] = useState(() => {
-    return sessionStorage.getItem("hrm_prefix_admin_id") || "emp04"; // Default: Phạm Thị Lan Anh
+    return localStorage.getItem("hrm_prefix_admin_id") || "emp04"; // Default: Phạm Thị Lan Anh
   });
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const handleLoginSuccess = (adminId: string) => {
     setCurrentAdminId(adminId);
     setIsLoggedIn(true);
-    sessionStorage.setItem("hrm_prefix_is_logged_in", "true");
-    sessionStorage.setItem("hrm_prefix_admin_id", adminId);
+    localStorage.setItem("hrm_prefix_is_logged_in", "true");
+    localStorage.setItem("hrm_prefix_admin_id", adminId);
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
-    sessionStorage.removeItem("hrm_prefix_is_logged_in");
-    sessionStorage.removeItem("hrm_prefix_admin_id");
+    localStorage.removeItem("hrm_prefix_is_logged_in");
+    localStorage.removeItem("hrm_prefix_admin_id");
   };
 
   const currentAdmin = employees.find(e => e.id === currentAdminId) || employees[0];
