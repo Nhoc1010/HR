@@ -1,0 +1,6 @@
+{
+  "name": "HRM Pro",
+  "description": "Hệ thống quản lý nhân sự chuyên nghiệp tích hợp AI, chấm công, nghỉ phép và quản lý tài năng.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

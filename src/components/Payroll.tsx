@@ -1,0 +1,594 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { useState, Dispatch, SetStateAction, FormEvent } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { 
+  CreditCard, 
+  RefreshCcw, 
+  CornerDownRight, 
+  HelpCircle, 
+  CheckCircle, 
+  Eye, 
+  DollarSign,
+  TrendingDown,
+  TrendingUp,
+  X,
+  FileText,
+  Clock,
+  Briefcase,
+  Search
+} from "lucide-react";
+import { Employee, Attendance, LeaveRequest, Contract, Payroll as PayrollType } from "../types";
+
+interface PayrollProps {
+  employees: Employee[];
+  attendance: Attendance[];
+  leaveRequests: LeaveRequest[];
+  contracts: Contract[];
+  payroll: PayrollType[];
+  setPayroll: Dispatch<SetStateAction<PayrollType[]>>;
+}
+
+export default function Payroll({ 
+  employees, 
+  attendance, 
+  leaveRequests, 
+  contracts, 
+  payroll, 
+  setPayroll 
+}: PayrollProps) {
+  const [selectedMonth, setSelectedMonth] = useState("05/2026");
+  const [selectedPay, setSelectedPay] = useState<PayrollType | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("Tất cả");
+
+  // Advance modal form
+  const [advancingPay, setAdvancingPay] = useState<PayrollType | null>(null);
+  const [advanceAmount, setAdvanceAmount] = useState(2000000);
+
+  // Recalculately Sync logs
+  const [syncStatusLog, setSyncStatusLog] = useState("");
+
+  // Statistics
+  const totalPayrollCost = payroll.reduce((acc, p) => acc + p.netSalary, 0);
+  const averageSalary = payroll.length > 0 ? Math.round(totalPayrollCost / payroll.length) : 0;
+  const pendingApprovalCount = payroll.filter(p => p.status === "Chờ duyệt").length;
+
+  // Sync Logic: Deeply connects Contracts, Attendance and Leaves!
+  const handleSyncWithHRM = () => {
+    setSyncStatusLog("syncing");
+    
+    // Simulate complex calculation
+    setTimeout(() => {
+      const updatedPayrollList = employees.map(emp => {
+        // 1. Get base salary & allowance from active contract (Module 4 limit link!)
+        const activeCon = contracts.find(c => c.employeeId === emp.id && c.status === "Đang hiệu lực");
+        const basicSalary = activeCon ? activeCon.basicSalary : emp.salary;
+        const allowance = activeCon ? activeCon.allowance : 1000000;
+
+        // 2. Count actual present days from Chấm công module (Module 2 link!)
+        const empAttendance = attendance.filter(att => att.employeeId === emp.id && att.date.startsWith("2026-05"));
+        const presentDaysCount = empAttendance.filter(att => att.status === "Đúng giờ" || att.status === "Đi muộn").length;
+        
+        // Count late arrivals
+        const lateCount = empAttendance.filter(att => att.status === "Đi muộn").length;
+
+        // 3. Count approved leaves from Nghi phép module (Module 5 link!)
+        // If they had "Phép năm", it is paid. If "Việc riêng", it is unpaid -> deducts salary!
+        const approvedLeaves = leaveRequests.filter(lr => lr.employeeId === emp.id && lr.status === "Đã duyệt");
+        const unpaidLeaveDays = approvedLeaves.filter(lr => lr.type === "Việc riêng" || lr.type === "Nghỉ ốm").length; // simple logic
+
+        // Standard working days per month is 22
+        const defaultWorkDays = presentDaysCount > 0 ? presentDaysCount : 20; // fallback to seed
+        
+        // 4. Calculate deductions: (Late Count * 100,000đ penalty) + (Unpaid Leaves * (basicSalary / 22))
+        const latePenalty = lateCount * 100000;
+        const unpaidDeduction = Math.round(unpaidLeaveDays * (basicSalary / 22));
+        const deductions = 1000000 + latePenalty + unpaidDeduction; // base insurance flat ~ 1M + penalty
+
+        // 5. Overtime logic: each tech lead gets small mock hours
+        const overtimeHours = emp.department === "Kỹ thuật" ? 8 : 0;
+        const overtimePay = overtimeHours * 200000; // 200k/hour
+
+        // Existing advance payments
+        const existingRecord = payroll.find(p => p.employeeId === emp.id);
+        const advanceValue = existingRecord ? existingRecord.advance : 0;
+
+        // Net computation:
+        // Basic salary pro-rated to actual work days + allowance + overtime - deductions - advance
+        const calculatedNet = Math.round(
+          (basicSalary * (defaultWorkDays / 22)) + allowance + overtimePay - deductions - advanceValue
+        );
+
+        return {
+          id: existingRecord?.id || `pay0${Math.floor(Math.random() * 1000)}`,
+          employeeId: emp.id,
+          employeeName: emp.name,
+          month: selectedMonth,
+          basicSalary,
+          workDays: defaultWorkDays,
+          overtimeHours,
+          allowance,
+          deductions,
+          advance: advanceValue,
+          netSalary: calculatedNet > 0 ? calculatedNet : 1000000, // safety floor
+          status: "Chờ duyệt" as const
+        };
+      });
+
+      setPayroll(updatedPayrollList);
+      setSyncStatusLog("Đã đồng bộ thành công! Số liệu được tổng hợp từ " + attendance.length + " lịch sử chấm công và " + leaveRequests.length + " phiếu nghỉ phép.");
+    }, 850);
+  };
+
+  // Advance submission
+  const handleAdvanceSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!advancingPay) return;
+
+    const updated = payroll.map(p => {
+      if (p.id === advancingPay.id) {
+        const newAdvanceVal = p.advance + advanceAmount;
+        const recalculatedNet = p.netSalary - advanceAmount;
+        return {
+          ...p,
+          advance: newAdvanceVal,
+          netSalary: recalculatedNet > 0 ? recalculatedNet : 0
+        };
+      }
+      return p;
+    });
+
+    setPayroll(updated);
+    setAdvancingPay(null);
+  };
+
+  // Change individual status to Paid
+  const handleApprovePayroll = (id: string) => {
+    const updated = payroll.map(p => {
+      if (p.id === id) {
+        return {
+          ...p,
+          status: "Đã thanh toán" as const
+        };
+      }
+      return p;
+    });
+    setPayroll(updated);
+  };
+
+  // Filter lists
+  const filteredPayroll = payroll.filter(p => {
+    const matchesSearch = p.employeeName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = filterStatus === "Tất cả" || p.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  return (
+    <div className="space-y-6 select-text">
+      {/* Header Panel */}
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/5 pb-5">
+        <div>
+          <h1 className="text-2xl font-display font-bold text-white tracking-tight font-sans">Bảng Tính Lương Doanh Nghiệp</h1>
+          <p className="text-white/45 text-sm mt-1">Chu kỳ hạch toán lương kết tuần/tháng, kết xuất khấu trừ & tạm ứng chính xác</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleSyncWithHRM}
+            disabled={syncStatusLog === "syncing"}
+            className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-90 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-lg"
+          >
+            <RefreshCcw className={`w-4 h-4 ${syncStatusLog === "syncing" ? "animate-spin" : ""}`} />
+            <span>{syncStatusLog === "syncing" ? "Đang đồng bộ..." : "Đồng bộ Chấm công & Phép"}</span>
+          </button>
+        </div>
+      </header>
+
+      {/* KPI Salary Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+        <div className="card-3d p-6 rounded-2xl flex items-start justify-between">
+          <div className="space-y-2">
+            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Tổng quỹ lương {selectedMonth}</span>
+            <p className="text-2xl font-mono font-bold text-violet-400">{totalPayrollCost.toLocaleString()}đ</p>
+            <p className="text-xs text-white/55">Thực lĩnh bàn giao nhân sự</p>
+          </div>
+          <div className="p-2.5 rounded-lg bg-violet-600/10 text-violet-400">
+            <DollarSign className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="card-3d p-6 rounded-2xl flex items-start justify-between">
+          <div className="space-y-2">
+            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Lương bình quân thực tế</span>
+            <p className="text-2xl font-mono font-bold text-emerald-400">{averageSalary.toLocaleString()}đ</p>
+            <p className="text-xs text-white/55">Đã bao gồm phụ cấp & OT</p>
+          </div>
+          <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+            <TrendingUp className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="card-3d p-6 rounded-2xl flex items-start justify-between">
+          <div className="space-y-2">
+            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Chưa phê duyệt chi</span>
+            <p className="text-2xl font-mono font-bold text-amber-500">{pendingApprovalCount}</p>
+            <p className="text-xs text-white/55">Phiếu lương đang chờ duyệt</p>
+          </div>
+          <div className="p-2.5 rounded-lg bg-amber-500/10 text-amber-500">
+            <Clock className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="card-3d p-6 rounded-2xl flex items-start justify-between">
+          <div className="space-y-2">
+            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Khấu trừ toàn cục</span>
+            <p className="text-2xl font-mono font-bold text-rose-400">
+              {payroll.reduce((acc, p) => acc + p.deductions, 0).toLocaleString()} <span className="text-xs">đ</span>
+            </p>
+            <p className="text-xs text-white/55">Thuế, phạt, BHXH, v.v...</p>
+          </div>
+          <div className="p-2.5 rounded-lg bg-rose-500/10 text-rose-400">
+            <TrendingDown className="w-4 h-4" />
+          </div>
+        </div>
+      </div>
+
+      {/* Sync Log Alert Notification */}
+      {syncStatusLog && syncStatusLog !== "syncing" && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-xl bg-violet-600/15 border border-violet-500/30 text-white text-xs flex items-center justify-between"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-violet-400" />
+            <span>{syncStatusLog}</span>
+          </div>
+          <X className="w-4 h-4 opacity-55 hover:opacity-100 cursor-pointer" onClick={() => setSyncStatusLog("")} />
+        </motion.div>
+      )}
+
+      {/* Tables Filter */}
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+        <div className="flex-1 w-full relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" />
+          <input
+            type="text"
+            placeholder="Tìm theo tên nhân viên..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-11 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50 text-xs"
+          />
+        </div>
+
+        <div className="flex gap-3 w-full md:w-auto">
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="px-3 py-2 bg-[#161920] border border-white/10 rounded-xl text-white text-xs select-none focus:outline-none"
+          >
+            <option value="05/2026">Chu kỳ 05/2026</option>
+            <option value="06/2026">Chu kỳ 06/2026</option>
+          </select>
+
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-2 bg-[#161920] border border-white/10 rounded-xl text-white text-xs select-none focus:outline-none"
+          >
+            <option value="Tất cả">Tất cả trạng thái</option>
+            <option value="Đã thanh toán">Đã thanh toán</option>
+            <option value="Chờ duyệt">Chờ duyệt</option>
+            <option value="Đang tính toán">Đang tính toán</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Main Payslip Table */}
+      <div className="glass-panel rounded-2xl border border-white/5 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-white/80">
+            <thead className="bg-white/5 text-white/50 uppercase tracking-wider font-mono text-[10px] border-b border-white/5">
+              <tr>
+                <th className="px-6 py-4">Nhân viên / Chu kỳ</th>
+                <th className="px-5 py-4 text-right">Lương cơ bản</th>
+                <th className="px-4 py-4 text-center">Ngày công (Công chuẩn 22)</th>
+                <th className="px-4 py-4 text-center">Tăng ca (H)</th>
+                <th className="px-4 py-4 text-right">Phụ cấp + OT</th>
+                <th className="px-4 py-4 text-right">Khấu trừ (-)</th>
+                <th className="px-4 py-4 text-right">Tạm ứng</th>
+                <th className="px-6 py-4 text-right">Thực lĩnh</th>
+                <th className="px-6 py-4 text-center">Trạng thái</th>
+                <th className="px-6 py-4 text-center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {filteredPayroll.map((pay) => (
+                <tr key={pay.id} className="hover:bg-white/2 transition-colors">
+                  <td className="px-6 py-4">
+                    <p className="font-bold text-white">{pay.employeeName}</p>
+                    <span className="text-[10px] text-white/30 font-mono italic">{pay.month}</span>
+                  </td>
+                  <td className="px-5 py-4 text-right font-mono text-white/70">
+                    {pay.basicSalary.toLocaleString()}đ
+                  </td>
+                  <td className="px-4 py-4 text-center font-mono font-bold text-violet-400">
+                    {pay.workDays} / 22
+                  </td>
+                  <td className="px-4 py-4 text-center font-mono text-white/50">
+                    {pay.overtimeHours > 0 ? `+${pay.overtimeHours}h` : "-"}
+                  </td>
+                  <td className="px-4 py-4 text-right font-mono text-emerald-400">
+                    +{(pay.allowance + pay.overtimeHours * 200000).toLocaleString()}đ
+                  </td>
+                  <td className="px-4 py-4 text-right font-mono text-rose-500">
+                    -{pay.deductions.toLocaleString()}đ
+                  </td>
+                  <td className="px-4 py-4 text-right font-mono">
+                    {pay.advance > 0 ? (
+                      <span className="text-amber-400">-{pay.advance.toLocaleString()}đ</span>
+                    ) : (
+                      <span className="text-white/30">-</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-right font-mono text-white font-extrabold text-sm">
+                    {pay.netSalary.toLocaleString()}đ
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      pay.status === "Đã thanh toán"
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                        : pay.status === "Chờ duyệt"
+                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                          : "bg-white/5 text-white/40 border border-white/5"
+                    }`}>
+                      {pay.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => setSelectedPay(pay)}
+                        className="p-1 px-2 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-all flex items-center gap-1 cursor-pointer"
+                        title="In phiếu lương"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Phiếu</span>
+                      </button>
+
+                      {pay.status !== "Đã thanh toán" && (
+                        <>
+                          <button
+                            onClick={() => setAdvancingPay(pay)}
+                            className="p-1 px-2 border border-amber-500/30 text-amber-500 hover:bg-amber-500/20 rounded-lg text-xs cursor-pointer transition-all"
+                            title="Tạm ứng tiền"
+                          >
+                            T.Ứ
+                          </button>
+                          
+                          <button
+                            onClick={() => handleApprovePayroll(pay.id)}
+                            className="p-1 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all"
+                            title="Thanh toán lương"
+                          >
+                            Chi
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              
+              {filteredPayroll.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="text-center py-12 text-white/30 font-mono">
+                    <HelpCircle className="w-8 h-8 text-white/10 mx-auto mb-2" />
+                    Không tìm thấy thông tin lương phù hợp
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Advance Modal Setup */}
+      <AnimatePresence>
+        {advancingPay && (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#161920] border border-white/10 rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl"
+            >
+              <div className="p-5 border-b border-white/5 flex items-center justify-between">
+                <h3 className="font-bold text-white text-base">Giải ngân tạm ứng nhân sự</h3>
+                <button
+                  type="button"
+                  onClick={() => setAdvancingPay(null)}
+                  className="p-1.5 rounded-lg bg-white/5 text-white/50 hover:text-white transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAdvanceSubmit} className="p-6 space-y-4 text-xs font-medium">
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-xl space-y-1">
+                  <p className="font-bold">DANH NGHĨA LIÊN KẾT</p>
+                  <p className="text-[11px] leading-relaxed">Khoản tiền ứng sẽ tự động ghi có vào phần KHẤU TRỪ / TẠM ỨNG của bảng lương nhân viên {advancingPay.employeeName} trong kỳ này.</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-white/60">Nhân viên đề xuất</label>
+                  <input
+                    type="text"
+                    disabled
+                    value={advancingPay.employeeName}
+                    className="w-full px-3 py-2 bg-slate-900 border border-white/5 text-white/50 rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-white/60">Số tiền ứng đề nghị (VND) *</label>
+                  <input
+                    type="number"
+                    value={advanceAmount}
+                    onChange={(e) => setAdvanceAmount(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-xl text-white focus:outline-none focus:border-violet-500/50"
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-white/5 flex justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setAdvancingPay(null)}
+                    className="px-4 py-2 border border-white/10 text-white/80 rounded-xl cursor-pointer"
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-[#F59E0B] hover:bg-amber-500 text-white rounded-xl font-bold cursor-pointer shadow-lg"
+                  >
+                    Duyệt chi tạm ứng
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Payslip Digital View Detail Modal */}
+      <AnimatePresence>
+        {selectedPay && (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#1E232D] border border-white/10 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl relative"
+            >
+              {/* Receipts Top Design Elements */}
+              <div className="h-2 w-full ai-gradient" />
+              
+              <div className="p-6 space-y-6">
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-violet-650 flex items-center justify-center text-white">
+                      <CreditCard className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white text-sm font-sans">PHIẾU LƯƠNG ĐIỆN TỬ</h3>
+                      <p className="text-[9px] font-mono text-white/40">NEXUS v2.0 // PAYROLL RECEPT</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPay(null)}
+                    className="p-1.5 rounded-lg bg-white/5 text-white/50 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Payslip info cards */}
+                <div className="space-y-4 text-xs">
+                  <div className="grid grid-cols-2 gap-3 pb-3 border-b border-white/5">
+                    <div>
+                      <p className="text-white/40 text-[10px] uppercase font-bold">Thành viên</p>
+                      <p className="font-bold text-white text-sm mt-0.5">{selectedPay.employeeName}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-white/40 text-[10px] uppercase font-bold">Kỳ chi trả</p>
+                      <p className="font-mono text-violet-400 font-bold mt-0.5">{selectedPay.month}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 font-mono text-white/80">
+                    <div className="flex justify-between">
+                      <span className="text-white/55">Lương thỏa thuận (Hợp đồng):</span>
+                      <span className="text-white">{selectedPay.basicSalary.toLocaleString()}đ</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-white/55">Số ngày công thực tế:</span>
+                      <span className="text-white">{selectedPay.workDays} / 22 ngày</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-white/55">Phụ cấp chức vụ & phúc lợi:</span>
+                      <span className="text-emerald-400">+{selectedPay.allowance.toLocaleString()}đ</span>
+                    </div>
+
+                    {selectedPay.overtimeHours > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-white/55">Lương tăng ca (+{selectedPay.overtimeHours} giờ):</span>
+                        <span className="text-emerald-400">+{(selectedPay.overtimeHours * 200000).toLocaleString()}đ</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between border-t border-white/5 pt-2">
+                      <span className="text-white/55">Khấu trừ quy định BHXH:</span>
+                      <span className="text-rose-400">-1,000,000đ</span>
+                    </div>
+
+                    {selectedPay.deductions > 1000000 && (
+                      <div className="flex justify-between">
+                        <span className="text-white/55">Khấu trừ đi muộn/việc riêng:</span>
+                        <span className="text-rose-400">-{(selectedPay.deductions - 1000000).toLocaleString()}đ</span>
+                      </div>
+                    )}
+
+                    {selectedPay.advance > 0 && (
+                      <div className="flex justify-between border-b border-white/5 pb-2">
+                        <span className="text-white/55">Bốc trừ tạm ứng giải ngân:</span>
+                        <span className="text-rose-500">-{selectedPay.advance.toLocaleString()}đ</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between text-base font-bold text-white border-t border-dashed border-white/10 pt-3">
+                      <span className="font-sans font-black">THỰC NHẬN CHUYỂN KHOẢN:</span>
+                      <span className="text-violet-400 font-mono">{selectedPay.netSalary.toLocaleString()}đ</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-white/3 border border-white/5 rounded-xl text-center space-y-1.5">
+                  <div className="flex items-center justify-center gap-1.5 text-[10px] text-white/50">
+                    <CheckCircle className={`w-3.5 h-3.5 ${selectedPay.status === "Đã thanh toán" ? "text-emerald-400" : "text-amber-400"}`} />
+                    <span className="uppercase tracking-widest font-bold">Quyết định trạng thái: {selectedPay.status}</span>
+                  </div>
+                  <p className="text-[9px] text-white/30 italic">Lương chuyển thẳng vào số tài khoản liên hợp đăng ký trong hồ sơ cá nhân</p>
+                </div>
+
+                <div className="flex justify-end gap-2 text-xs">
+                  <button
+                    onClick={() => {
+                      // Trigger prompt download of slip
+                      alert("Kết xuất tệp kê khai phiếu lương định dạng PDF thành công!");
+                    }}
+                    className="px-4 py-2 border border-white/10 hover:bg-white/5 text-white/80 rounded-xl cursor-pointer font-bold"
+                  >
+                    Kết xuất PDF
+                  </button>
+                  <button
+                    onClick={() => setSelectedPay(null)}
+                    className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl cursor-pointer font-bold"
+                  >
+                    Đóng lại
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
