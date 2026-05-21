@@ -33,6 +33,7 @@ import {
   DollarSign
 } from "lucide-react";
 import { Employee, Contract, Payroll as PayrollType, Attendance } from "../types";
+import DatePicker from "./DatePicker";
 
 interface EmployeesProps {
   employees: Employee[];
@@ -737,25 +738,21 @@ export default function Employees({
                           />
                         </div>
 
-                        <div className="space-y-1">
-                          <label className="text-xs text-slate-400 font-medium">Ngày vào làm</label>
-                          <input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="w-full px-3 py-2.5 bg-slate-900 border border-slate-800 focus:border-violet-500 focus:outline-none rounded-xl text-white text-sm"
-                          />
-                        </div>
+                        <DatePicker
+                          id="employee-start-date"
+                          label="Ngày vào làm"
+                          value={startDate}
+                          onChange={setStartDate}
+                        />
 
-                        <div className="space-y-1">
-                          <label className="text-xs text-slate-400 font-medium">Ngày sinh</label>
-                          <input
-                            type="date"
-                            value={birthDate}
-                            onChange={(e) => setBirthDate(e.target.value)}
-                            className="w-full px-3 py-2.5 bg-slate-900 border border-slate-800 focus:border-violet-500 focus:outline-none rounded-xl text-white text-sm"
-                          />
-                        </div>
+                        <DatePicker
+                          id="employee-birth-date"
+                          label="Ngày sinh"
+                          value={birthDate}
+                          onChange={setBirthDate}
+                          minYear={1950}
+                          maxYear={2015}
+                        />
 
                         <div className="space-y-1">
                           <label className="text-xs text-slate-400 font-medium">Lương cơ bản (VNĐ)</label>
@@ -857,15 +854,12 @@ export default function Employees({
                           </select>
                         </div>
 
-                        <div className="space-y-1">
-                          <label className="text-xs text-slate-400 font-medium">Ngày bắt đầu HĐ</label>
-                          <input
-                            type="date"
-                            value={contractStartDate}
-                            onChange={(e) => setContractStartDate(e.target.value)}
-                            className="w-full px-3 py-2.5 bg-slate-900 border border-slate-800 focus:border-violet-500 focus:outline-none rounded-xl text-white text-sm"
-                          />
-                        </div>
+                        <DatePicker
+                          id="employee-contract-start-date"
+                          label="Ngày bắt đầu HĐ"
+                          value={contractStartDate}
+                          onChange={setContractStartDate}
+                        />
                       </div>
                     </div>
                   </div>
