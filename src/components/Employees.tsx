@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, Dispatch, SetStateAction, FormEvent } from "react";
+import { useState, Dispatch, SetStateAction, FormEvent, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Plus, 
@@ -58,15 +58,29 @@ export default function Employees({
 }: EmployeesProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDept, setSelectedDept] = useState("Tất cả phòng ban");
+  const [selectedPosition, setSelectedPosition] = useState("Tất cả chức vụ");
+  const [selectedStatus, setSelectedStatus] = useState("Tất cả trạng thái");
+
+  // Dynamically compute unique positions from the employees array
+  const uniquePositions = useMemo(() => {
+    const list = employees.map(emp => emp.position.trim());
+    const unique = Array.from(new Set(list)).filter(Boolean);
+    return ["Tất cả chức vụ", ...unique.sort()];
+  }, [employees]);
+
+  const statusOptions = ["Tất cả trạng thái", "Đang làm", "Thử việc", "Nghỉ phép", "Đã nghỉ"];
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [activeFormTab, setActiveFormTab] = useState<"profile" | "history" | "training">("profile");
+  const [activeFormTab, setActiveFormTab] = useState<"profile" | "history" | "training" | "documents">("profile");
 
   // Detailed view modal states
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
-  const [detailTab, setDetailTab] = useState<"profile" | "contracts" | "payroll" | "attendance">("profile");
+  const [detailTab, setDetailTab] = useState<"profile" | "contracts" | "payroll" | "attendance" | "documents">("profile");
+
+  // Custom documents state for current edit form
+  const [empDocuments, setEmpDocuments] = useState<{ id: string; name: string; type: string; url?: string; uploadDate: string; size?: string }[]>([]);
 
   // Form states
   const [fullName, setFullName] = useState("");
@@ -312,10 +326,16 @@ export default function Employees({
       setBhxhJoinDate(emp.bhxhJoinDate);
       setContractType(emp.contractType);
       setContractStartDate(emp.contractStartDate);
+      
+      const savedDocs = emp.documents || [
+        { id: `doc-ccd-${emp.id}`, name: `CCCD_Nguyen_Van_${emp.name.split(" ").pop() || "NhanVien"}.jpg`, type: "JPG", uploadDate: "2026-03-10", size: "380 KB" },
+        { id: `doc-hd-${emp.id}`, name: `Hop_dong_lao_dong_${emp.code}.pdf`, type: "PDF", uploadDate: emp.contractStartDate || "2026-05-20", size: "1.4 MB" },
+        { id: `doc-bc-${emp.id}`, name: `Bang_cu_nhan_chuyen_nganh.pdf`, type: "PDF", uploadDate: "2026-02-14", size: "2.5 MB" }
+      ];
+      setEmpDocuments(savedDocs);
     } else {
       setSelectedEmployee(null);
       setFullName("");
-      // Generate next code
       const nextNum = employees.length + 1;
       setEmpCode(`NV${String(nextNum).padStart(3, "0")}`);
       setPosition("");
@@ -331,6 +351,7 @@ export default function Employees({
       setBhxhJoinDate("");
       setContractType("Xác định thời hạn (12 tháng)");
       setContractStartDate("2026-05-20");
+      setEmpDocuments([]);
     }
     setIsModalOpen(true);
   };
@@ -360,7 +381,8 @@ export default function Employees({
       bhxhJoinDate: bhxhJoinDate,
       contractType: contractType,
       contractStartDate: contractStartDate,
-      status: selectedEmployee?.status || "Đang làm"
+      status: selectedEmployee?.status || "Đang làm",
+      documents: empDocuments
     };
 
     if (selectedEmployee) {
@@ -384,6 +406,60 @@ export default function Employees({
     // Closer modal and reset states
     setIsModalOpen(false);
     setShowDeleteConfirm(false);
+  };
+
+  const handleAddDocumentToEmployee = (employeeId: string, docName: string, docType: string, fileSize: string) => {
+    const newDoc = {
+      id: "doc-" + Date.now(),
+      name: docName,
+      type: docType,
+      uploadDate: new Date().toLocaleDateString("vi-VN"),
+      size: fileSize,
+      url: "#"
+    };
+    
+    // Update employees list
+    setEmployees(prev => prev.map(emp => {
+      if (emp.id === employeeId) {
+        const currentDocs = emp.documents || [
+          { id: `doc-ccd-${emp.id}`, name: `CCCD_Nguyen_Van_${emp.name.split(" ").pop() || "NhanVien"}.jpg`, type: "JPG", uploadDate: "2026-03-10", size: "380 KB" },
+          { id: `doc-hd-${emp.id}`, name: `Hop_dong_lao_dong_${emp.code}.pdf`, type: "PDF", uploadDate: emp.contractStartDate || "2026-05-20", size: "1.4 MB" },
+          { id: `doc-bc-${emp.id}`, name: `Bang_cu_nhan_chuyen_nganh.pdf`, type: "PDF", uploadDate: "2026-02-14", size: "2.5 MB" }
+        ];
+        const updated = {
+          ...emp,
+          documents: [newDoc, ...currentDocs]
+        };
+        // Sync detail modal state immediately
+        if (detailEmployee && detailEmployee.id === employeeId) {
+          setDetailEmployee(updated);
+        }
+        return updated;
+      }
+      return emp;
+    }));
+  };
+
+  const handleDeleteDocumentFromEmployee = (employeeId: string, docId: string) => {
+    setEmployees(prev => prev.map(emp => {
+      if (emp.id === employeeId) {
+        const currentDocs = emp.documents || [
+          { id: `doc-ccd-${emp.id}`, name: `CCCD_Nguyen_Van_${emp.name.split(" ").pop() || "NhanVien"}.jpg`, type: "JPG", uploadDate: "2026-03-10", size: "380 KB" },
+          { id: `doc-hd-${emp.id}`, name: `Hop_dong_lao_dong_${emp.code}.pdf`, type: "PDF", uploadDate: emp.contractStartDate || "2026-05-20", size: "1.4 MB" },
+          { id: `doc-bc-${emp.id}`, name: `Bang_cu_nhan_chuyen_nganh.pdf`, type: "PDF", uploadDate: "2026-02-14", size: "2.5 MB" }
+        ];
+        const updated = {
+          ...emp,
+          documents: currentDocs.filter(d => d.id !== docId)
+        };
+        // Sync detail modal state immediately
+        if (detailEmployee && detailEmployee.id === employeeId) {
+          setDetailEmployee(updated);
+        }
+        return updated;
+      }
+      return emp;
+    }));
   };
 
   const handleAIAutoFill = async () => {
@@ -428,7 +504,13 @@ export default function Employees({
     const matchesDept = 
       selectedDept === "Tất cả phòng ban" || emp.department === selectedDept;
 
-    return matchesQuery && matchesDept;
+    const matchesPosition = 
+      selectedPosition === "Tất cả chức vụ" || emp.position === selectedPosition;
+
+    const matchesStatus = 
+      selectedStatus === "Tất cả trạng thái" || emp.status === selectedStatus;
+
+    return matchesQuery && matchesDept && matchesPosition && matchesStatus;
   });
 
   return (
@@ -461,31 +543,132 @@ export default function Employees({
         </div>
       </div>
 
-      {/* Filter Options */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="flex-1 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm tên, mã, chức vụ..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-[#1E232D]/40 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50 transition-all text-sm"
-          />
+      {/* Dynamic Advanced Filter Dashboard Bar */}
+      <div className="bg-[#11151D]/60 border border-white/5 p-4 rounded-xl space-y-4 shadow-xl">
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Main search query */}
+          <div className="flex-1 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-violet-400/70 w-5 h-5 animate-pulse" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm nhanh nhân viên theo tên, mã số, hoặc chức vụ..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-10 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-white/25 focus:outline-none focus:border-violet-500/80 focus:ring-1 focus:ring-violet-500/30 transition-all text-sm font-sans"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery("")}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                type="button"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Quick reset active filters button */}
+          {(selectedDept !== "Tất cả phòng ban" || selectedPosition !== "Tất cả chức vụ" || selectedStatus !== "Tất cả trạng thái" || searchQuery) && (
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setSelectedDept("Tất cả phòng ban");
+                setSelectedPosition("Tất cả chức vụ");
+                setSelectedStatus("Tất cả trạng thái");
+              }}
+              className="px-4 py-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-rose-500/20 active:scale-95 transition-all self-stretch cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5 animate-spin-once" />
+              <span>Đặt lại bộ lọc</span>
+            </button>
+          )}
         </div>
-        
-        <div className="w-full md:w-64 relative">
-          <select
-            value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
-            className="w-full px-4 py-3 bg-[#1E232D]/40 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-violet-500/50 transition-all text-sm pr-10"
-          >
-            <option value="Tất cả phòng ban" className="bg-slate-900 border-none text-white">Tất cả phòng ban</option>
-            {depts.map((d, id) => (
-              <option key={id} value={d} className="bg-slate-900 border-none text-white">{d}</option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4 pointer-events-none" />
+
+        {/* Multi-parameter options tag selects */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-white/5">
+          {/* Dept select */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Phòng ban</label>
+            <div className="relative">
+              <select
+                value={selectedDept}
+                onChange={(e) => setSelectedDept(e.target.value)}
+                className="w-full pl-3.5 pr-10 py-2.5 bg-slate-950/60 border border-white/5 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-violet-500/50 transition-all text-xs font-medium"
+              >
+                <option value="Tất cả phòng ban" className="bg-[#0B0D12] text-white">Tất cả phòng ban ({employees.length})</option>
+                {depts.map((d, id) => {
+                  const count = employees.filter(emp => emp.department === d).length;
+                  return (
+                    <option key={id} value={d} className="bg-[#0B0D12] text-white">
+                      {d} ({count})
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 w-3.5 h-3.5 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Position select */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Chức vụ / Vị trí</label>
+            <div className="relative">
+              <select
+                value={selectedPosition}
+                onChange={(e) => setSelectedPosition(e.target.value)}
+                className="w-full pl-3.5 pr-10 py-2.5 bg-slate-950/60 border border-white/5 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-violet-500/50 transition-all text-xs font-medium"
+              >
+                {uniquePositions.map((p, id) => {
+                  const count = p === "Tất cả chức vụ" 
+                    ? employees.length 
+                    : employees.filter(emp => emp.position === p).length;
+                  return (
+                    <option key={id} value={p} className="bg-[#0B0D12] text-white">
+                      {p} ({count})
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 w-3.5 h-3.5 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Status select */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Trạng thái làm việc</label>
+            <div className="relative">
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full pl-3.5 pr-10 py-2.5 bg-slate-950/60 border border-white/5 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-violet-500/50 transition-all text-xs font-medium"
+              >
+                {statusOptions.map((s, id) => {
+                  const count = s === "Tất cả trạng thái"
+                    ? employees.length
+                    : employees.filter(emp => emp.status === s).length;
+                  return (
+                    <option key={id} value={s} className="bg-[#0B0D12] text-white">
+                      {s} ({count})
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 w-3.5 h-3.5 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
+        {/* Quick pill filter summary */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-[11px] text-white/40">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span>Đang lọc:</span>
+            <span className="px-2 py-0.5 rounded bg-white/5 text-white/70 font-mono text-[10px]">{selectedDept}</span>
+            <span className="px-2 py-0.5 rounded bg-white/5 text-white/70 font-mono text-[10px]">{selectedPosition}</span>
+            <span className="px-2 py-0.5 rounded bg-white/5 text-white/70 font-mono text-[10px]">{selectedStatus}</span>
+          </div>
+          <div>
+            Hiển thị <strong className="text-violet-400 font-mono">{filteredEmployees.length}</strong> / {employees.length} nhân viên
+          </div>
         </div>
       </div>
 
@@ -657,6 +840,17 @@ export default function Employees({
                     }`}
                   >
                     Đào tạo & Chứng chỉ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveFormTab("documents")}
+                    className={`py-2 px-3 border-b-2 transition-all cursor-pointer ${
+                      activeFormTab === "documents" 
+                        ? "border-violet-500 text-white" 
+                        : "border-transparent text-white/40 hover:text-white"
+                    }`}
+                  >
+                    Giấy tờ liên quan
                   </button>
                 </div>
               )}
@@ -930,6 +1124,157 @@ export default function Employees({
                   </div>
                 )}
 
+                {activeFormTab === "documents" && (
+                  <div className="space-y-6 py-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center space-x-2">
+                          <span className="w-1.5 h-3 bg-violet-500 rounded-full" />
+                          <span>Giấy tờ hồ sơ nhân viên</span>
+                        </h3>
+                        <p className="text-[11px] text-white/40 mt-1">Lưu trữ, cập nhật và quản lý các loại giấy tờ pháp lý liên quan của nhân sự này.</p>
+                      </div>
+
+                      {/* Rapid Mock Generator for testing */}
+                      <div className="flex flex-wrap gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const mockDoc = {
+                              id: `mock-doc-${Date.now()}`,
+                              name: `Quyet_dinh_tang_luong_${Date.now().toString().slice(-4)}.pdf`,
+                              type: "PDF",
+                              uploadDate: new Date().toLocaleDateString("vi-VN"),
+                              size: "1.2 MB",
+                              url: "#"
+                            };
+                            setEmpDocuments(prev => [mockDoc, ...prev]);
+                          }}
+                          className="px-2.5 py-1.5 bg-violet-600/10 text-violet-400 border border-violet-500/15 hover:bg-violet-600/20 rounded-lg text-[10px] font-bold cursor-pointer transition-all active:scale-95 flex items-center gap-1 shrink-0"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>Thêm Quyết định</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const mockDoc = {
+                              id: `mock-doc-${Date.now()}`,
+                              name: `Giay_kham_suc_khoe_lam_viec.pdf`,
+                              type: "PDF",
+                              uploadDate: new Date().toLocaleDateString("vi-VN"),
+                              size: "2.1 MB",
+                              url: "#"
+                            };
+                            setEmpDocuments(prev => [mockDoc, ...prev]);
+                          }}
+                          className="px-2.5 py-1.5 bg-pink-500/10 text-pink-400 border border-pink-500/15 hover:bg-pink-500/20 rounded-lg text-[10px] font-bold cursor-pointer transition-all active:scale-95 flex items-center gap-1 shrink-0"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>Thêm Giấy khám SK</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Interactive Dropzone and file selector */}
+                    <div className="p-6 border-2 border-dashed border-white/10 rounded-2xl bg-white/[0.01] hover:bg-white/[0.02] hover:border-violet-500/30 transition-all text-center relative">
+                      <input 
+                        type="file" 
+                        id="form-upload-doc-input" 
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          
+                          let sizeStr = "150 KB";
+                          if (file.size > 1024 * 1024) {
+                            sizeStr = (file.size / (1024 * 1024)).toFixed(1) + " MB";
+                          } else {
+                            sizeStr = Math.round(file.size / 1024) + " KB";
+                          }
+                          
+                          const ext = file.name.split(".").pop()?.toUpperCase() || "PDF";
+                          
+                          const newDoc = {
+                            id: `doc-${Date.now()}`,
+                            name: file.name,
+                            type: ext,
+                            uploadDate: new Date().toLocaleDateString("vi-VN"),
+                            size: sizeStr,
+                            url: "#"
+                          };
+                          setEmpDocuments(prev => [newDoc, ...prev]);
+                          e.target.value = "";
+                        }} 
+                      />
+                      <FileText className="w-8 h-8 text-violet-400/80 mx-auto mb-2.5 animate-pulse" />
+                      <p className="text-white text-xs font-semibold">Tải lên giấy tờ mới từ máy tính của bạn</p>
+                      <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed">Kéo thả tệp tin vào đây hoặc click để duyệt tìm hồ sơ (PDF, JPG, PNG, DOCX, tối đa 10MB)</p>
+                    </div>
+
+                    {/* Documents list */}
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                      {empDocuments.length > 0 ? (
+                        empDocuments.map((doc) => (
+                          <div 
+                            key={doc.id} 
+                            className="p-3.5 flex items-center justify-between bg-slate-900/30 border border-white/5 rounded-xl hover:border-white/10 hover:bg-slate-900/50 transition-all group"
+                          >
+                            <div className="flex items-center space-x-3.5 min-w-0">
+                              <div className={`w-9 h-9 flex items-center justify-center rounded-xl shrink-0 ${
+                                doc.type === "PDF" 
+                                  ? "bg-rose-500/10 text-rose-400 border border-rose-500/15" 
+                                  : doc.type === "DOCX" || doc.type === "DOC"
+                                    ? "bg-sky-500/10 text-sky-400 border border-sky-500/15"
+                                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/15"
+                              }`}>
+                                <span className="text-[9px] font-black tracking-wider uppercase font-mono">{doc.type}</span>
+                              </div>
+                              <div className="min-w-0 text-left">
+                                <p className="text-xs font-semibold text-white truncate pr-4 leading-normal">{doc.name}</p>
+                                <div className="flex items-center space-x-3 text-[10px] text-zinc-500 font-medium mt-0.5 font-mono">
+                                  <span>Dung lượng: {doc.size}</span>
+                                  <span>•</span>
+                                  <span>Ngày tải: {doc.uploadDate}</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center space-x-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  alert(`Xem trước tài liệu: ${doc.name}\n(Giả lập xem file trực tuyến đầy đủ)`);
+                                }}
+                                className="p-1.5 rounded-lg hover:bg-white/5 text-slate-400 hover:text-white border border-white/5 transition-all text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                                title="Xem trước tài liệu"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEmpDocuments(prev => prev.filter(d => d.id !== doc.id));
+                                }}
+                                className="p-1.5 rounded-lg border border-red-500/10 bg-red-500/5 hover:bg-red-500/15 text-red-400 hover:text-red-300 transition-all cursor-pointer"
+                                title="Gỡ bỏ tài liệu này"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-8 text-center border border-dashed border-white/5 rounded-2xl bg-white/[0.005]">
+                          <Briefcase className="w-7 h-7 text-white/10 mx-auto mb-1.5" />
+                          <p className="text-white/35 text-[11px] font-semibold">Chưa có giấy tờ lưu trữ cho nhân sự này</p>
+                          <p className="text-[9px] text-zinc-600 mt-0.5">Tải lên tệp hoặc nhấp các nút Thêm nhanh ở trên để khởi tạo hồ sơ</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Submit / Close buttons */}
                 <div className="pt-4 border-t border-slate-800">
                   {showDeleteConfirm ? (
@@ -976,7 +1321,7 @@ export default function Employees({
                         >
                           Đóng lại
                         </button>
-                        {activeFormTab === "profile" && (
+                         {(activeFormTab === "profile" || activeFormTab === "documents") && (
                           <button
                             type="submit"
                             className="px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-transform active:scale-95 cursor-pointer shadow-lg glow-purple"
@@ -1291,6 +1636,18 @@ export default function Employees({
                 >
                   <Clock className="w-4 h-4" />
                   <span>Nhật Ký Chấm Công</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailTab("documents")}
+                  className={`py-3.5 px-1 border-b-2 transition-all flex items-center space-x-2 cursor-pointer shrink-0 ${
+                    detailTab === "documents" 
+                      ? "border-violet-500 text-white" 
+                      : "border-transparent text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Briefcase className="w-4 h-4 text-violet-400" />
+                  <span>Giấy Tờ Hồ Sơ</span>
                 </button>
               </div>
 

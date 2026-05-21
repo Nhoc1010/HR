@@ -21,6 +21,7 @@ export interface Employee {
   contractType: string;
   contractStartDate: string;
   status: "Đang làm" | "Nghỉ phép" | "Thử việc" | "Đã nghỉ";
+  documents?: { id: string; name: string; type: string; url?: string; uploadDate: string; size?: string }[];
 }
 
 export interface Attendance {
