@@ -63,7 +63,7 @@ export interface Candidate {
   position: string;
   phone: string;
   email: string;
-  status: "Ứng tuyển" | "Sàng lọc" | "Phỏng vấn" | "Đề nghị" | "Đã tuyển";
+  status: "Ứng tuyển" | "Sàng lọc" | "Phỏng vấn" | "Đề nghị" | "Đã tuyển" | "Không đạt";
   score: number; // 0-100
   notes: string;
   cvSummary?: string;

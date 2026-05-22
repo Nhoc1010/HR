@@ -19,7 +19,10 @@ import {
   HelpCircle,
   CheckCircle,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  Search,
+  Filter,
+  RotateCcw
 } from "lucide-react";
 import { Candidate, Employee, Contract, Payroll as PayrollType } from "../types";
 
@@ -47,6 +50,11 @@ export default function Recruitment({
   const [activeCandidateId, setActiveCandidateId] = useState<string | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<string>("");
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+
+  // Filter States
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterPosition, setFilterPosition] = useState("");
+  const [filterInterviewType, setFilterInterviewType] = useState("");
 
   // Onboarding States
   const [isOnboardOpen, setIsOnboardOpen] = useState(false);
@@ -162,12 +170,13 @@ export default function Recruitment({
   const [customNewTypeForForm, setCustomNewTypeForForm] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
-  const stages: { id: "Ứng tuyển" | "Sàng lọc" | "Phỏng vấn" | "Đề nghị" | "Đã tuyển"; label: string; countColor: string }[] = [
+  const stages: { id: "Ứng tuyển" | "Sàng lọc" | "Phỏng vấn" | "Đề nghị" | "Đã tuyển" | "Không đạt"; label: string; countColor: string }[] = [
     { id: "Ứng tuyển", label: "Ứng tuyển", countColor: "bg-blue-955 text-blue-400" },
     { id: "Sàng lọc", label: "Sàng lọc", countColor: "bg-amber-955 text-amber-400" },
     { id: "Phỏng vấn", label: "Phỏng vấn", countColor: "bg-violet-955 text-violet-400" },
     { id: "Đề nghị", label: "Đề nghị", countColor: "bg-fuchsia-955 text-fuchsia-400" },
     { id: "Đã tuyển", label: "Đã tuyển", countColor: "bg-emerald-955 text-emerald-400" },
+    { id: "Không đạt", label: "Không đạt", countColor: "bg-rose-955 text-rose-400" },
   ];
 
   const handleShiftStage = (id: string, stage: any) => {
@@ -229,6 +238,10 @@ export default function Recruitment({
     setCandInterviewType("Phỏng vấn Sơ vấn");
   };
 
+  // Generate filter option lists dynamically
+  const uniquePositions = Array.from(new Set(candidates.map(c => c.position).filter(Boolean)));
+  const uniqueInterviewTypes = Array.from(new Set(candidates.map(c => c.interviewType).filter(Boolean)));
+
   return (
     <div className="space-y-6">
       {/* Title */}
@@ -249,10 +262,83 @@ export default function Recruitment({
         </button>
       </div>
 
+      {/* Search and Filters Section */}
+      <div className="p-4 bg-slate-900/40 border border-slate-905 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Search box */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm ứng viên theo tên..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-white placeholder-slate-550 focus:outline-none focus:border-violet-500 hover:border-slate-800 transition"
+            />
+          </div>
+
+          {/* Filter by Position */}
+          <div className="relative min-w-[200px]">
+            <select
+              value={filterPosition}
+              onChange={(e) => setFilterPosition(e.target.value)}
+              className="w-full pl-3 pr-10 py-2.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-white appearance-none cursor-pointer focus:outline-none focus:border-violet-500 hover:border-slate-800 transition"
+            >
+              <option value="">Tất cả vị trí ứng tuyển</option>
+              {uniquePositions.map((pos) => (
+                <option key={pos} value={pos}>{pos}</option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-violet-450 border-l border-slate-900">
+              <Filter className="w-3.5 h-3.5" />
+            </div>
+          </div>
+
+          {/* Filter by Interview Type */}
+          <div className="relative min-w-[220px]">
+            <select
+              value={filterInterviewType}
+              onChange={(e) => setFilterInterviewType(e.target.value)}
+              className="w-full pl-3 pr-10 py-2.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-white appearance-none cursor-pointer focus:outline-none focus:border-violet-500 hover:border-slate-800 transition"
+            >
+              <option value="">Tất cả hình thức phỏng vấn</option>
+              {uniqueInterviewTypes.map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-violet-450 border-l border-slate-900">
+              <Filter className="w-3.5 h-3.5" />
+            </div>
+          </div>
+        </div>
+
+        {/* Clear Filters button */}
+        {(searchTerm || filterPosition || filterInterviewType) && (
+          <button
+            onClick={() => {
+              setSearchTerm("");
+              setFilterPosition("");
+              setFilterInterviewType("");
+            }}
+            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-200 hover:text-white rounded-xl text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer shrink-0"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-violet-400" />
+            <span>Xoá bộ lọc</span>
+          </button>
+        )}
+      </div>
+
       {/* Kanban Stages Funnel Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 overflow-x-auto pb-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 overflow-x-auto pb-4">
         {stages.map((st) => {
-          const stCandidates = candidates.filter(c => c.status === st.id);
+          // Apply text search and filter choices
+          const filteredList = candidates.filter(c => {
+            const matchesSearch = !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesPosition = !filterPosition || c.position === filterPosition;
+            const matchesInterview = !filterInterviewType || c.interviewType === filterInterviewType;
+            return matchesSearch && matchesPosition && matchesInterview;
+          });
+          const stCandidates = filteredList.filter(c => c.status === st.id);
           return (
             <div key={st.id} className="p-3 bg-slate-950/40 border border-slate-900 rounded-2xl flex flex-col min-h-[460px] min-w-[200px] shrink-0">
               {/* Column Name */}
@@ -335,6 +421,7 @@ export default function Recruitment({
                             <option value="Phỏng vấn">Phỏng vấn</option>
                             <option value="Đề nghị">Đề nghị</option>
                             <option value="Đã tuyển">Đã tuyển</option>
+                            <option value="Không đạt">Không đạt</option>
                           </select>
                         </div>
                       </div>
@@ -402,7 +489,11 @@ export default function Recruitment({
                   </div>
                   <div className="p-3 bg-slate-900 border border-slate-850 rounded-xl">
                     <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-wider">Trạng thái</span>
-                    <span className="inline-block mt-1 text-[10px] px-2 py-0.5 bg-indigo-950 text-indigo-400 rounded-full font-bold">
+                    <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                      currentCandidate.status === "Không đạt"
+                        ? "bg-rose-500/15 text-rose-400 border border-rose-500/20"
+                        : "bg-indigo-950 text-indigo-400"
+                    }`}>
                       {currentCandidate.status}
                     </span>
                   </div>

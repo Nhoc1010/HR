@@ -79,6 +79,19 @@ export default function Employees({
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
   const [detailTab, setDetailTab] = useState<"profile" | "contracts" | "payroll" | "attendance" | "documents">("profile");
 
+  // Detailed Modal filter/sorting states
+  const [contractFilterStatus, setContractFilterStatus] = useState<string>("all");
+  const [contractSortBy, setContractSortBy] = useState<string>("startDateNewest");
+  const [payrollFilterStatus, setPayrollFilterStatus] = useState<string>("all");
+  const [payrollSortBy, setPayrollSortBy] = useState<string>("monthNewest");
+  const [attendanceFilterStatus, setAttendanceFilterStatus] = useState<string>("all");
+  const [attendanceSearchTerm, setAttendanceSearchTerm] = useState<string>("");
+  const [docSearchQuery, setDocSearchQuery] = useState<string>("");
+  const [docFilterType, setDocFilterType] = useState<string>("all");
+  const [newDocName, setNewDocName] = useState<string>("");
+  const [newDocType, setNewDocType] = useState<string>("PDF");
+  const [isUploadingDoc, setIsUploadingDoc] = useState<boolean>(false);
+
   // Custom documents state for current edit form
   const [empDocuments, setEmpDocuments] = useState<{ id: string; name: string; type: string; url?: string; uploadDate: string; size?: string }[]>([]);
 
@@ -689,6 +702,17 @@ export default function Employees({
                 onClick={() => {
                   setDetailEmployee(emp);
                   setDetailTab("profile");
+                  setContractFilterStatus("all");
+                  setContractSortBy("startDateNewest");
+                  setPayrollFilterStatus("all");
+                  setPayrollSortBy("monthNewest");
+                  setAttendanceFilterStatus("all");
+                  setAttendanceSearchTerm("");
+                  setDocSearchQuery("");
+                  setDocFilterType("all");
+                  setNewDocName("");
+                  setNewDocType("PDF");
+                  setIsUploadingDoc(false);
                   setIsDetailModalOpen(true);
                 }}
                 key={emp.id}
@@ -1738,229 +1762,392 @@ export default function Employees({
                 {/* 2. CONTRACTS TAB */}
                 {detailTab === "contracts" && (
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-xs font-bold text-violet-400 uppercase tracking-widest flex items-center space-x-2">
-                        <span className="w-1.5 h-3 bg-violet-500 rounded-full" />
-                        <span>SỰ NGHIỆP & LỊCH SỬ HỢP ĐỒNG LAO ĐỘNG</span>
-                      </h3>
-                      <span className="text-[10px] bg-white/5 border border-white/10 text-white/60 px-3 py-1 rounded font-mono">
-                        {contracts.filter(c => c.employeeId === detailEmployee.id).length} hợp đồng
-                      </span>
-                    </div>
+                    {(() => {
+                      const filteredContracts = (() => {
+                        let list = contracts.filter(c => c.employeeId === detailEmployee.id);
+                        
+                        if (contractFilterStatus !== "all") {
+                          list = list.filter(c => c.status === contractFilterStatus);
+                        }
+                        
+                        list = [...list].sort((a, b) => {
+                          if (contractSortBy === "startDateNewest") {
+                            return b.startDate.localeCompare(a.startDate);
+                          } else if (contractSortBy === "startDateOldest") {
+                            return a.startDate.localeCompare(b.startDate);
+                          } else if (contractSortBy === "salaryDesc") {
+                            return b.basicSalary - a.basicSalary;
+                          } else if (contractSortBy === "salaryAsc") {
+                            return a.basicSalary - b.basicSalary;
+                          }
+                          return b.startDate.localeCompare(a.startDate);
+                        });
+                        
+                        return list;
+                      })();
 
-                    {contracts.filter(c => c.employeeId === detailEmployee.id).length > 0 ? (
-                      <div className="space-y-6">
-                        {contracts.filter(c => c.employeeId === detailEmployee.id).map((contract) => (
-                          <div key={contract.id} className="p-6 bg-[#13151D] border border-slate-800 rounded-2xl space-y-5">
-                            {/* Contract Header */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
-                              <div className="space-y-1">
-                                <span className="text-[10px] bg-violet-500/10 text-violet-400 border border-violet-500/20 px-2.5 py-1 rounded-full font-bold font-mono">
-                                  HĐLĐ • {contract.id.substring(0, 10).toUpperCase()}
-                                </span>
-                                <h4 className="text-base font-bold text-white pt-1">{contract.type}</h4>
-                              </div>
-                              <span className={`px-3 py-1 rounded-full text-xs font-semibold self-start sm:self-center border ${
-                                contract.status === "Đang hiệu lực" 
-                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.1)]" 
-                                  : "bg-white/5 text-white/40 border-white/5"
-                              }`}>
-                                {contract.status}
-                              </span>
+                      return (
+                        <>
+                          {/* Heading & Stats */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
+                            <div>
+                              <h3 className="text-xs font-bold text-violet-400 uppercase tracking-widest flex items-center space-x-2">
+                                <span className="w-1.5 h-3 bg-violet-500 rounded-full" />
+                                <span>SỰ NGHIỆP & LỊCH SỬ HỢP ĐỒNG LAO ĐỘNG</span>
+                              </h3>
+                              <p className="text-[11px] text-white/40 mt-1">Xem, sắp xếp và lọc toàn bộ tiến trình điều chuyển chuyên môn, hợp đồng lao động.</p>
                             </div>
+                            <span className="text-[10px] bg-white/5 border border-white/10 text-white/60 px-3 py-1 rounded font-mono shrink-0 self-start sm:self-center">
+                              {filteredContracts.length} / {contracts.filter(c => c.employeeId === detailEmployee.id).length} hợp đồng
+                            </span>
+                          </div>
 
-                            {/* Details Grid */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                              <div>
-                                <span className="text-slate-500 block font-medium">Bắt đầu hiệu lực</span>
-                                <span className="text-white font-mono font-bold mt-0.5 block">{contract.startDate}</span>
-                              </div>
-                              <div>
-                                <span className="text-slate-500 block font-medium">Thời hạn hợp đồng</span>
-                                <span className="text-white font-mono mt-0.5 block">{contract.endDate}</span>
-                              </div>
-                              <div>
-                                <span className="text-slate-500 block font-medium">Mức lương cơ bản</span>
-                                <span className="text-white font-mono font-medium text-emerald-400 mt-0.5 block">
-                                  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(contract.basicSalary)}
-                                </span>
-                              </div>
-                              <div>
-                                <span className="text-slate-500 block font-medium">Phụ cấp được nhận</span>
-                                <span className="text-white font-mono font-medium text-indigo-400 mt-0.5 block">
-                                  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(contract.allowance)}
-                                </span>
-                              </div>
+                          {/* Filter ToolBar */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-900/20 border border-slate-900 rounded-2xl">
+                            <div>
+                              <label className="text-[10px] text-slate-500 uppercase font-black tracking-wider block mb-1">Trạng thái hợp đồng</label>
+                              <select
+                                value={contractFilterStatus}
+                                onChange={(e) => setContractFilterStatus(e.target.value)}
+                                className="w-full px-3 py-2 bg-[#0B0D12] border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition cursor-pointer"
+                              >
+                                <option value="all">Tất cả trạng thái</option>
+                                <option value="Đang hiệu lực">Đang hiệu lực</option>
+                                <option value="Hết hạn">Hết hạn</option>
+                                <option value="Chờ gia hạn">Chờ gia hạn</option>
+                              </select>
                             </div>
+                            <div>
+                              <label className="text-[10px] text-slate-500 uppercase font-black tracking-wider block mb-1">Cơ chế sắp xếp</label>
+                              <select
+                                value={contractSortBy}
+                                onChange={(e) => setContractSortBy(e.target.value)}
+                                className="w-full px-3 py-2 bg-[#0B0D12] border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition cursor-pointer"
+                              >
+                                <option value="startDateNewest">Ngày hiệu lực (Mới nhất)</option>
+                                <option value="startDateOldest">Ngày hiệu lực (Cũ nhất)</option>
+                                <option value="salaryDesc">Lương cơ bản (Giảm dần)</option>
+                                <option value="salaryAsc">Lương cơ bản (Tăng dần)</option>
+                              </select>
+                            </div>
+                          </div>
 
-                            {/* Contract Timeline History */}
-                            {contract.history && contract.history.length > 0 && (
-                              <div className="pt-4 border-t border-white/5">
-                                <span className="text-[10px] text-slate-500 uppercase font-bold block mb-3 tracking-wider">Tiến trình lịch sử</span>
-                                <div className="space-y-3.5 pl-1">
-                                  {contract.history.map((hist, idx) => (
-                                    <div key={idx} className="flex space-x-3 text-xs">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-1.5 shrink-0" />
-                                      <div className="space-y-0.5">
+                          {/* Main Contracts Container */}
+                          {filteredContracts.length > 0 ? (
+                            <div className="space-y-4">
+                              {filteredContracts.map((contract) => {
+                                const isActive = contract.status === "Đang hiệu lực";
+                                return (
+                                  <div 
+                                    key={contract.id} 
+                                    className={`p-5 bg-gradient-to-r from-slate-900/40 to-slate-950/20 border rounded-2xl space-y-4 transition ${
+                                      isActive 
+                                        ? "border-emerald-500/30 bg-[#0E1513]/40 shadow-[0_0_12px_rgba(16,185,129,0.05)]" 
+                                        : "border-slate-800/80 hover:border-slate-700/60"
+                                    }`}
+                                  >
+                                    {/* Contract Header */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
+                                      <div className="space-y-1">
                                         <div className="flex items-center space-x-2">
-                                          <span className="font-bold text-white">{hist.action}</span>
-                                          <span className="text-[10px] text-slate-500 font-mono">{hist.date}</span>
+                                          <span className="text-[9px] bg-violet-500/10 text-violet-400 border border-violet-500/20 px-2 py-0.5 rounded-md font-bold font-mono">
+                                            HĐLĐ • {contract.id.substring(0, 10).toUpperCase()}
+                                          </span>
+                                          {isActive && (
+                                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                          )}
                                         </div>
-                                        <p className="text-slate-400 leading-relaxed text-[11px]">{hist.note}</p>
+                                        <h4 className="text-sm font-bold text-white pt-1">{contract.type}</h4>
+                                      </div>
+                                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border self-start sm:self-center ${
+                                        isActive 
+                                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                                          : contract.status === "Chờ gia hạn"
+                                            ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                            : "bg-white/5 text-white/40 border-white/5"
+                                      }`}>
+                                        {contract.status}
+                                      </span>
+                                    </div>
+
+                                    {/* Details Grid */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                                      <div className="p-2.5 bg-[#07090D] border border-white/5 rounded-xl">
+                                        <span className="text-[10px] text-slate-500 block font-medium">Bắt đầu hiệu lực</span>
+                                        <span className="text-white font-mono font-bold mt-1 block">{contract.startDate}</span>
+                                      </div>
+                                      <div className="p-2.5 bg-[#07090D] border border-white/5 rounded-xl">
+                                        <span className="text-[10px] text-slate-500 block font-medium">Thời hạn hợp đồng</span>
+                                        <span className="text-white font-mono mt-1 block">{contract.endDate}</span>
+                                      </div>
+                                      <div className="p-2.5 bg-[#07090D] border border-white/5 rounded-xl">
+                                        <span className="text-[10px] text-slate-500 block font-medium">Mức lương cơ bản</span>
+                                        <span className="text-emerald-400 font-mono font-bold mt-1 block text-sm">
+                                          {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(contract.basicSalary)}
+                                        </span>
+                                      </div>
+                                      <div className="p-2.5 bg-[#07090D] border border-white/5 rounded-xl">
+                                        <span className="text-[10px] text-slate-500 block font-medium">Phụ cấp hàng tháng</span>
+                                        <span className="text-indigo-400 font-mono font-bold mt-1 block">
+                                          +{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(contract.allowance)}
+                                        </span>
                                       </div>
                                     </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="py-12 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
-                        <FileText className="w-10 h-10 text-white/10 mx-auto mb-2" />
-                        <p className="text-white/40 text-sm font-medium">Chưa có thông tin hợp đồng được định dạng cho nhân sự này</p>
-                      </div>
-                    )}
+
+                                    {/* Contract Timeline History */}
+                                    {contract.history && contract.history.length > 0 && (
+                                      <div className="pt-3 border-t border-white/5 bg-[#07080F]/20 p-4 rounded-xl space-y-3">
+                                        <span className="text-[9px] text-slate-500 uppercase font-black block tracking-widest">Tiến trình lịch sử hợp đồng</span>
+                                        <div className="space-y-3 pl-1 relative border-l border-slate-800">
+                                          {contract.history.map((hist, idx) => (
+                                            <div key={idx} className="flex items-start space-x-3 text-xs pl-3">
+                                              <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-1 shrink-0 -ml-[16px]" />
+                                              <div className="space-y-0.5">
+                                                <div className="flex items-center space-x-2">
+                                                  <span className="font-bold text-white text-[11px]">{hist.action}</span>
+                                                  <span className="text-[9px] text-slate-500 font-mono">{hist.date}</span>
+                                                </div>
+                                                <p className="text-slate-400 leading-relaxed text-[10px]">{hist.note}</p>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="py-12 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
+                              <FileText className="w-8 h-8 text-white/10 mx-auto mb-2 animate-bounce" />
+                              <p className="text-white/40 text-xs font-semibold">Không tìm thấy hợp đồng nào phù hợp bộ lọc hiện tại</p>
+                              {(contractFilterStatus !== "all") && (
+                                <button
+                                  onClick={() => {
+                                    setContractFilterStatus("all");
+                                    setContractSortBy("startDateNewest");
+                                  }}
+                                  className="mt-3 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 font-bold border border-violet-500/20 text-[10px] rounded-lg transition"
+                                >
+                                  Đặt lại bộ lọc
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
 
                 {/* 3. PAYROLL TAB */}
                 {detailTab === "payroll" && (
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-xs font-bold text-violet-400 uppercase tracking-widest flex items-center space-x-2">
-                        <span className="w-1.5 h-3 bg-violet-500 rounded-full" />
-                        <span>NHẬN ĐỊNH LƯƠNG BỔNG & PHIẾU LƯƠNG ĐỊNH KỲ</span>
-                      </h3>
-                      <span className="text-[10px] bg-white/5 border border-white/10 text-white/60 px-3 py-1 rounded font-mono">
-                        {payroll.filter(p => p.employeeId === detailEmployee.id).length} bảng lương
-                      </span>
-                    </div>
+                    {(() => {
+                      const filteredPayroll = (() => {
+                        let list = payroll.filter(p => p.employeeId === detailEmployee.id);
+                        
+                        // filter
+                        if (payrollFilterStatus !== "all") {
+                          list = list.filter(p => p.status === payrollFilterStatus);
+                        }
+                        
+                        // sort
+                        list = [...list].sort((a, b) => {
+                          if (payrollSortBy === "monthNewest") {
+                            const scoreA = a.month.split("/").reverse().join("");
+                            const scoreB = b.month.split("/").reverse().join("");
+                            return scoreB.localeCompare(scoreA);
+                          } else if (payrollSortBy === "monthOldest") {
+                            const scoreA = a.month.split("/").reverse().join("");
+                            const scoreB = b.month.split("/").reverse().join("");
+                            return scoreA.localeCompare(scoreA);
+                          } else if (payrollSortBy === "salaryDesc") {
+                            return b.netSalary - a.netSalary;
+                          } else if (payrollSortBy === "salaryAsc") {
+                            return a.netSalary - b.netSalary;
+                          }
+                          return 0;
+                        });
+                        
+                        return list;
+                      })();
 
-                    {payroll.filter(p => p.employeeId === detailEmployee.id).length > 0 ? (
-                      <div className="space-y-5">
-                        {/* Summary overview card of the first item (typically current month) */}
-                        {(() => {
-                          const records = payroll.filter(p => p.employeeId === detailEmployee.id);
-                          const latest = records[0]; 
-                          return (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <div className="bg-emerald-950/10 border border-emerald-500/10 p-5 rounded-2xl text-left space-y-1">
-                                <span className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">Thực lĩnh gần nhất ({latest.month})</span>
-                                <div className="text-emerald-400 text-lg md:text-xl font-bold font-mono">
-                                  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(latest.netSalary)}
+                      // Compute stats
+                      const totalNetSalary = filteredPayroll.reduce((acc, curr) => acc + curr.netSalary, 0);
+                      const totalAllowance = filteredPayroll.reduce((acc, curr) => acc + curr.allowance, 0);
+                      const avgDeductions = filteredPayroll.length > 0
+                        ? filteredPayroll.reduce((acc, curr) => acc + curr.deductions, 0) / filteredPayroll.length
+                        : 0;
+
+                      return (
+                        <>
+                          {/* Heading & count info */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
+                            <div>
+                              <h3 className="text-xs font-bold text-violet-400 uppercase tracking-widest flex items-center space-x-2">
+                                <span className="w-1.5 h-3 bg-violet-500 rounded-full" />
+                                <span>NHẬN ĐỊNH LƯƠNG BỔNG & PHIẾU LƯƠNG ĐỊNH KỲ</span>
+                              </h3>
+                              <p className="text-[11px] text-white/40 mt-1">Lịch sử thu nhập, tăng ca, các khoản phụ cấp và khấu trừ thuế/bảo hiểm xã hội.</p>
+                            </div>
+                            <span className="text-[10px] bg-white/5 border border-white/10 text-white/60 px-3 py-1 rounded font-mono shrink-0 self-start sm:self-center">
+                              {filteredPayroll.length} / {payroll.filter(p => p.employeeId === detailEmployee.id).length} kỳ lương
+                            </span>
+                          </div>
+
+                          {/* Filter ToolBar */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-900/20 border border-slate-900 rounded-2xl">
+                            <div>
+                              <label className="text-[10px] text-slate-500 uppercase font-black tracking-wider block mb-1">Trạng thái thanh toán</label>
+                              <select
+                                value={payrollFilterStatus}
+                                onChange={(e) => setPayrollFilterStatus(e.target.value)}
+                                className="w-full px-3 py-2 bg-[#0B0D12] border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition cursor-pointer"
+                              >
+                                <option value="all">Tất cả trạng thái</option>
+                                <option value="Đã thanh toán">Đã thanh toán</option>
+                                <option value="Chờ duyệt">Chờ duyệt</option>
+                                <option value="Đang tính toán">Đang tính toán</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-slate-500 uppercase font-black tracking-wider block mb-1">Cơ chế sắp xếp</label>
+                              <select
+                                value={payrollSortBy}
+                                onChange={(e) => setPayrollSortBy(e.target.value)}
+                                className="w-full px-3 py-2 bg-[#0B0D12] border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition cursor-pointer"
+                              >
+                                <option value="monthNewest">Kỳ lương gần nhất</option>
+                                <option value="monthOldest">Kỳ lương cũ nhất</option>
+                                <option value="salaryDesc">Thực lĩnh cao nhất</option>
+                                <option value="salaryAsc">Thực lĩnh thấp nhất</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {filteredPayroll.length > 0 ? (
+                            <div className="space-y-5">
+                              {/* Summary Cards */}
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div className="bg-emerald-950/10 border border-emerald-500/10 p-4.5 rounded-2xl text-left space-y-1">
+                                  <span className="text-[9px] text-emerald-400 uppercase font-black tracking-wider block">Tổng thực lĩnh (Bộ lọc)</span>
+                                  <div className="text-emerald-400 text-lg md:text-xl font-black font-mono">
+                                    {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(totalNetSalary)}
+                                  </div>
+                                  <p className="text-[10px] text-zinc-500">Mức lương ròng nhận về tay.</p>
                                 </div>
-                                <p className="text-[10px] text-zinc-500">Đã bao gồm phụ cấp & bảo hiểm xã hội chuẩn.</p>
+
+                                <div className="bg-slate-900/30 border border-slate-800 p-4.5 rounded-2xl text-left space-y-1">
+                                  <span className="text-[9px] text-slate-400 uppercase font-black tracking-wider block">Tổng phụ cấp nhận được</span>
+                                  <div className="text-white text-lg font-black font-mono">
+                                    {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(totalAllowance)}
+                                  </div>
+                                  <p className="text-[10px] text-zinc-500 font-sans">Chi phí hỗ trợ ăn uống, đi lại, dự án.</p>
+                                </div>
+
+                                <div className="bg-slate-900/30 border border-slate-800 p-4.5 rounded-2xl text-left space-y-1">
+                                  <span className="text-[9px] text-rose-400/80 uppercase font-black tracking-wider block">Khấu trừ TB / Tháng</span>
+                                  <div className="text-rose-400/90 text-lg font-black font-mono">
+                                    {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(avgDeductions)}
+                                  </div>
+                                  <p className="text-[10px] text-zinc-500 font-sans">Đi muộn, bảo hiểm xã hội chuẩn.</p>
+                                </div>
                               </div>
 
-                              <div className="bg-slate-900/30 border border-slate-800 p-5 rounded-2xl text-left space-y-1">
-                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Phụ cấp & Thêm giờ</span>
-                                <div className="text-white text-lg font-bold font-mono">
-                                  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(latest.allowance)}
-                                </div>
-                                <p className="text-[10px] text-zinc-500">Làm thêm giờ được quy đổi: {latest.overtimeHours} giờ.</p>
-                              </div>
-
-                              <div className="bg-slate-900/30 border border-slate-800 p-5 rounded-2xl text-left space-y-1">
-                                <span className="text-[10px] text-red-400/80 uppercase font-bold tracking-wider">Khấu trừ tích luỹ</span>
-                                <div className="text-red-400/90 text-lg font-bold font-mono">
-                                  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(latest.deductions)}
-                                </div>
-                                <p className="text-[10px] text-zinc-500">Bao gồm đi muộn, đóng phạt hành chính.</p>
+                              {/* Payroll Table */}
+                              <div className="overflow-x-auto border border-slate-800 rounded-2xl bg-slate-950/40">
+                                <table className="w-full text-xs text-left text-slate-300">
+                                  <thead className="text-[10pt] text-slate-400 uppercase font-bold bg-slate-900/60 border-b border-slate-800">
+                                    <tr>
+                                      <th className="px-5 py-4 text-xs font-bold leading-normal">Kỳ lương</th>
+                                      <th className="px-4 py-4 text-xs font-bold leading-normal">Lương cơ bản</th>
+                                      <th className="px-4 py-4 text-xs font-bold leading-normal text-center">Công thực tế</th>
+                                      <th className="px-4 py-4 text-xs font-bold leading-normal text-center">Tăng ca</th>
+                                      <th className="px-4 py-4 text-xs font-bold leading-normal">Phụ cấp</th>
+                                      <th className="px-4 py-4 text-xs font-bold leading-normal text-red-400/80">Khấu trừ</th>
+                                      <th className="px-4 py-4 text-xs font-bold leading-normal text-emerald-400 font-bold">Thực lĩnh</th>
+                                      <th className="px-5 py-4 text-xs font-bold leading-normal text-right">Trạng thái</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-800 bg-slate-900/10">
+                                    {filteredPayroll.map((pay) => (
+                                      <tr key={pay.id} className="hover:bg-slate-900/40 transition-colors">
+                                        <td className="px-5 py-3.5 font-mono font-bold text-white text-xs">{pay.month}</td>
+                                        <td className="px-4 py-3.5 font-mono border-none text-xs">
+                                          {new Intl.NumberFormat("vi-VN").format(pay.basicSalary)}đ
+                                        </td>
+                                        <td className="px-4 py-3.5 font-mono font-bold text-center text-xs text-white">{pay.workDays} ngày</td>
+                                        <td className="px-4 py-3.5 font-mono text-center text-xs text-slate-400">{pay.overtimeHours}h</td>
+                                        <td className="px-4 py-3.5 font-mono text-xs text-emerald-400">
+                                          +{new Intl.NumberFormat("vi-VN").format(pay.allowance)}đ
+                                        </td>
+                                        <td className="px-4 py-3.5 font-mono text-xs text-red-400/80">
+                                          -{new Intl.NumberFormat("vi-VN").format(pay.deductions)}đ
+                                        </td>
+                                        <td className="px-4 py-3.5 font-mono font-black text-xs text-emerald-400 bg-emerald-500/5">
+                                          {new Intl.NumberFormat("vi-VN").format(pay.netSalary)}đ
+                                        </td>
+                                        <td className="px-5 py-3.5 text-right">
+                                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                                            pay.status === "Đã thanh toán" 
+                                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
+                                              : pay.status === "Chờ duyệt" 
+                                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" 
+                                                : "bg-[#1C1D24] text-slate-400 border border-slate-800"
+                                          }`}>
+                                            {pay.status}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
                               </div>
                             </div>
-                          );
-                        })()}
-
-                        {/* Payroll Table */}
-                        <div className="overflow-x-auto border border-slate-800 rounded-2xl bg-slate-950/40">
-                          <table className="w-full text-xs text-left text-slate-300">
-                            <thead className="text-[10px] text-slate-400 uppercase font-bold bg-slate-900/60 border-b border-slate-800">
-                              <tr>
-                                <th className="px-5 py-4">Kỳ lương</th>
-                                <th className="px-4 py-4">Lương cơ bản</th>
-                                <th className="px-4 py-4">Công thực tế</th>
-                                <th className="px-4 py-4">OT</th>
-                                <th className="px-4 py-4">Phụ cấp</th>
-                                <th className="px-4 py-4 text-red-400/80">Khấu trừ</th>
-                                <th className="px-4 py-4 text-emerald-400 font-bold">Thành tiền</th>
-                                <th className="px-5 py-4 text-right">Trạng thái</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800 bg-slate-900/10">
-                              {payroll.filter(p => p.employeeId === detailEmployee.id).map((pay) => (
-                                <tr key={pay.id} className="hover:bg-slate-900/40 transition-colors">
-                                  <td className="px-5 py-4 font-mono font-bold text-white">{pay.month}</td>
-                                  <td className="px-4 py-4 font-mono border-none">
-                                    {new Intl.NumberFormat("vi-VN").format(pay.basicSalary)}
-                                  </td>
-                                  <td className="px-4 py-4 font-mono font-bold text-center">{pay.workDays} ngày</td>
-                                  <td className="px-4 py-4 font-mono text-center">{pay.overtimeHours}h</td>
-                                  <td className="px-4 py-4 font-mono text-emerald-500/80">
-                                    +{new Intl.NumberFormat("vi-VN").format(pay.allowance)}
-                                  </td>
-                                  <td className="px-4 py-4 font-mono text-red-400/80">
-                                    -{new Intl.NumberFormat("vi-VN").format(pay.deductions)}
-                                  </td>
-                                  <td className="px-4 py-4 font-mono font-bold text-emerald-400">
-                                    {new Intl.NumberFormat("vi-VN").format(pay.netSalary)}
-                                  </td>
-                                  <td className="px-5 py-4 text-right">
-                                    <span className={`px-2.5 py-1 rounded text-[10px] font-semibold ${
-                                      pay.status === "Đã thanh toán" 
-                                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
-                                        : pay.status === "Chờ duyệt" 
-                                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" 
-                                          : "bg-white/5 text-slate-400 border border-white/5"
-                                    }`}>
-                                      {pay.status}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="py-12 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
-                        <DollarSign className="w-10 h-10 text-white/10 mx-auto mb-2" />
-                        <p className="text-white/40 text-sm font-medium">Nhân sự này chưa phát sinh kì lương tích lũy trong hệ thống bộ lọc</p>
-                      </div>
-                    )}
+                          ) : (
+                            <div className="py-12 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
+                              <DollarSign className="w-8 h-8 text-white/10 mx-auto mb-2 animate-bounce" />
+                              <p className="text-white/40 text-xs font-semibold">Chưa phát sinh kì lương nào thỏa mãn bộ lọc</p>
+                              {(payrollFilterStatus !== "all") && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPayrollFilterStatus("all");
+                                    setPayrollSortBy("monthNewest");
+                                  }}
+                                  className="mt-3 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 font-bold border border-violet-500/20 text-[10px] rounded-lg transition"
+                                >
+                                  Đặt lại bộ lọc
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
 
                 {/* 4. ATTENDANCE TAB */}
                 {detailTab === "attendance" && (
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-xs font-bold text-violet-400 uppercase tracking-widest flex items-center space-x-2">
-                        <span className="w-1.5 h-3 bg-violet-500 rounded-full" />
-                        <span>PHƯƠNG ÁN ĐỒNG BỘ CHẤM CÔNG VÀ SỰ DIỆN DIỆN</span>
-                      </h3>
-                      <span className="text-[10px] bg-white/5 border border-white/10 text-white/60 px-3 py-1 rounded font-mono">
-                        {attendance.filter(a => a.employeeId === detailEmployee.id).length} lượt chấm công
-                      </span>
-                    </div>
-
                     {(() => {
                       const logs = attendance.filter(a => a.employeeId === detailEmployee.id);
-                      if (logs.length === 0) {
-                        return (
-                          <div className="py-12 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
-                            <Clock className="w-10 h-10 text-white/10 mx-auto mb-2" />
-                            <p className="text-white/40 text-sm font-medium">Không tìm thấy dữ liệu điểm danh nào trong lịch sử chấm công</p>
-                          </div>
-                        );
-                      }
+                      const filteredAttendance = logs.filter(log => {
+                        const matchesStatus = attendanceFilterStatus === "all" || log.status === attendanceFilterStatus;
+                        const matchesSearch = !attendanceSearchTerm || 
+                          log.date.toLowerCase().includes(attendanceSearchTerm.toLowerCase()) ||
+                          (log.notes && log.notes.toLowerCase().includes(attendanceSearchTerm.toLowerCase()));
+                        return matchesStatus && matchesSearch;
+                      });
 
-                      // Compute stats
-                      const totalCount = logs.length;
-                      const onTimeCount = logs.filter(a => a.status === "Đúng giờ").length;
-                      const lateCount = logs.filter(a => a.status === "Đi muộn").length;
-                      const leaveCount = logs.filter(a => a.status === "Nghỉ phép").length;
+                      // Compute stats on current filtered list
+                      const totalCount = filteredAttendance.length;
+                      const onTimeCount = filteredAttendance.filter(a => a.status === "Đúng giờ").length;
+                      const lateCount = filteredAttendance.filter(a => a.status === "Đi muộn").length;
+                      const leaveCount = filteredAttendance.filter(a => a.status === "Nghỉ phép").length;
 
                       const activeCheckIns = onTimeCount + lateCount;
                       const punctuality = totalCount > 0 && activeCheckIns > 0
@@ -1968,84 +2155,361 @@ export default function Employees({
                         : "100%";
 
                       return (
-                        <div className="space-y-6">
-                          {/* Stats Grid */}
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
-                            <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 text-left">
-                              <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider block">Tổng ngày công</span>
-                              <span className="text-lg font-bold text-white font-mono mt-1 block">{totalCount} ngày</span>
+                        <>
+                          {/* Heading & description */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
+                            <div>
+                              <h3 className="text-xs font-bold text-violet-400 uppercase tracking-widest flex items-center space-x-2">
+                                <span className="w-1.5 h-3 bg-violet-500 rounded-full" />
+                                <span>PHƯƠNG ÁN ĐỒNG BỘ CHẤM CÔNG VÀ SỰ DIỆN DIỆN</span>
+                              </h3>
+                              <p className="text-[11px] text-white/40 mt-1">Lịch sử điểm danh chi tiết hàng ngày, đi muộn về sớm, nghỉ phép và nghỉ không lương.</p>
                             </div>
+                            <span className="text-[10px] bg-white/5 border border-white/10 text-white/60 px-3 py-1 rounded font-mono shrink-0 self-start sm:self-center">
+                              {filteredAttendance.length} / {logs.length} lượt chấm công
+                            </span>
+                          </div>
 
-                            <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 text-left">
-                              <span className="text-[9px] text-emerald-400 uppercase font-bold tracking-wider block">Đúng giờ</span>
-                              <span className="text-lg font-bold text-emerald-400 font-mono mt-1 block">{onTimeCount} ngày</span>
+                          {/* Filter ToolBar */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-900/20 border border-slate-900 rounded-2xl">
+                            <div>
+                              <label className="text-[10px] text-slate-500 uppercase font-black tracking-wider block mb-1">Tìm kiếm ngày / ghi chú</label>
+                              <input
+                                type="text"
+                                value={attendanceSearchTerm}
+                                onChange={(e) => setAttendanceSearchTerm(e.target.value)}
+                                placeholder="Nhập ngày (DD/MM/YYYY) hoặc ghi chú..."
+                                className="w-full px-3 py-2 bg-[#0B0D12] border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition"
+                              />
                             </div>
-
-                            <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 text-left">
-                              <span className="text-[9px] text-amber-500 uppercase font-bold tracking-wider block">Đi muộn</span>
-                              <span className="text-lg font-bold text-amber-500 font-mono mt-1 block">{lateCount} ngày</span>
-                            </div>
-
-                            <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 text-left">
-                              <span className="text-[9px] text-indigo-400 uppercase font-bold tracking-wider block">Nghỉ phép</span>
-                              <span className="text-lg font-bold text-indigo-400 font-mono mt-1 block">{leaveCount} ngày</span>
-                            </div>
-
-                            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-left col-span-2 md:col-span-1">
-                              <span className="text-[9px] text-emerald-400 uppercase font-bold tracking-wider block">Tỉ lệ đúng giờ</span>
-                              <span className="text-lg font-bold text-white font-mono mt-1 block">{punctuality}</span>
+                            <div>
+                              <label className="text-[10px] text-slate-500 uppercase font-black tracking-wider block mb-1">Trạng thái điểm danh</label>
+                              <select
+                                value={attendanceFilterStatus}
+                                onChange={(e) => setAttendanceFilterStatus(e.target.value)}
+                                className="w-full px-3 py-2 bg-[#0B0D12] border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition cursor-pointer"
+                              >
+                                <option value="all">Tất cả trạng thái</option>
+                                <option value="Đúng giờ">Đúng giờ</option>
+                                <option value="Đi muộn">Đi muộn</option>
+                                <option value="Nghỉ phép">Nghỉ phép</option>
+                                <option value="Vắng mặt">Vắng mặt</option>
+                              </select>
                             </div>
                           </div>
 
-                          {/* Attendance Log Table */}
-                          <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950/40">
-                            <table className="w-full text-xs text-left text-slate-300">
-                              <thead className="text-[10px] text-slate-400 uppercase font-bold bg-slate-900/60 border-b border-slate-800">
-                                <tr>
-                                  <th className="px-5 py-3.5">Ngày</th>
-                                  <th className="px-4 py-3.5">Giờ vào (Check-In)</th>
-                                  <th className="px-4 py-3.5">Giờ ra (Check-Out)</th>
-                                  <th className="px-4 py-3.5">Trạng thái</th>
-                                  <th className="px-5 py-3.5 text-right">Ghi chú</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-800 bg-slate-900/10 bg-none">
-                                {[...logs].sort((a,b) => b.date.localeCompare(a.date)).map((log) => (
-                                  <tr key={log.id} className="hover:bg-slate-900/40 transition-colors">
-                                    <td className="px-5 py-3.5 font-mono text-white font-semibold">{log.date}</td>
-                                    <td className="px-4 py-3.5 font-mono text-emerald-400/90 border-none">{log.checkIn || "—"}</td>
-                                    <td className="px-4 py-3.5 font-mono text-indigo-400/95 border-none">{log.checkOut || "—"}</td>
-                                    <td className="px-4 py-3.5 border-none">
-                                      <span className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded text-[10px] font-semibold border ${
-                                        log.status === "Đúng giờ" 
-                                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
-                                          : log.status === "Đi muộn"
-                                            ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                                            : log.status === "Nghỉ phép"
-                                              ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                                              : "bg-red-500/10 text-red-400 border-red-500/20"
+                          {filteredAttendance.length > 0 ? (
+                            <div className="space-y-6">
+                              {/* Stats Grid */}
+                              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                <div className="p-3 bg-slate-900/40 border border-slate-800 rounded-xl text-left">
+                                  <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider block">Tổng ngày công</span>
+                                  <span className="text-base font-bold text-white font-mono mt-0.5 block">{totalCount} ngày</span>
+                                </div>
+
+                                <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-xl text-left">
+                                  <span className="text-[9px] text-emerald-400 font-bold tracking-wider block">Đúng giờ</span>
+                                  <span className="text-base font-bold text-emerald-400 font-mono mt-0.5 block">{onTimeCount} ngày</span>
+                                </div>
+
+                                <div className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl text-left">
+                                  <span className="text-[9px] text-amber-500 font-bold tracking-wider block">Đi muộn</span>
+                                  <span className="text-base font-bold text-amber-500 font-mono mt-0.5 block">{lateCount} ngày</span>
+                                </div>
+
+                                <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-xl text-left">
+                                  <span className="text-[9px] text-indigo-400 font-bold tracking-wider block">Nghỉ phép</span>
+                                  <span className="text-base font-bold text-indigo-400 font-mono mt-0.5 block">{leaveCount} ngày</span>
+                                </div>
+
+                                <div className="p-3 bg-slate-900/40 border border-slate-800 rounded-xl text-left col-span-2 md:col-span-1">
+                                  <span className="text-[9px] text-violet-400 font-bold tracking-wider block">Tỉ lệ đúng giờ</span>
+                                  <span className="text-base font-bold text-white font-mono mt-0.5 block">{punctuality}</span>
+                                </div>
+                              </div>
+
+                              {/* Attendance Log Table */}
+                              <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950/40">
+                                <table className="w-full text-xs text-left text-slate-300">
+                                  <thead className="text-[10px] text-slate-400 uppercase font-bold bg-slate-900/60 border-b border-slate-800">
+                                    <tr>
+                                      <th className="px-5 py-3.5">Ngày</th>
+                                      <th className="px-4 py-3.5">Giờ vào (Check-In)</th>
+                                      <th className="px-4 py-3.5">Giờ ra (Check-Out)</th>
+                                      <th className="px-4 py-3.5">Trạng thái</th>
+                                      <th className="px-5 py-3.5 text-right">Ghi chú</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-800 bg-slate-900/10 bg-none">
+                                    {[...filteredAttendance].sort((a,b) => b.date.localeCompare(a.date)).map((log) => (
+                                      <tr key={log.id} className="hover:bg-slate-900/40 transition-colors">
+                                        <td className="px-5 py-3 font-mono text-white font-semibold">{log.date}</td>
+                                        <td className="px-4 py-3 font-mono text-emerald-400/90 border-none">{log.checkIn || "—"}</td>
+                                        <td className="px-4 py-3 font-mono text-indigo-400/95 border-none">{log.checkOut || "—"}</td>
+                                        <td className="px-4 py-3 border-none">
+                                          <span className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded text-[10px] font-semibold border ${
+                                            log.status === "Đúng giờ" 
+                                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                                              : log.status === "Đi muộn"
+                                                ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                                : log.status === "Nghỉ phép"
+                                                  ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                                                  : "bg-red-500/10 text-red-400 border-red-500/20"
+                                          }`}>
+                                            <span className={`w-1 h-1 rounded-full ${
+                                              log.status === "Đúng giờ" 
+                                                ? "bg-emerald-400" 
+                                                : log.status === "Đi muộn"
+                                                  ? "bg-amber-400"
+                                                  : log.status === "Nghỉ phép"
+                                                    ? "bg-indigo-400"
+                                                    : "bg-red-400"
+                                            }`} />
+                                            <span>{log.status}</span>
+                                          </span>
+                                        </td>
+                                        <td className="px-5 py-3 text-slate-400 text-right italic font-sans truncate max-w-[150px] border-none">
+                                          {log.notes || "—"}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="py-12 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
+                              <Clock className="w-8 h-8 text-white/10 mx-auto mb-2 animate-bounce" />
+                              <p className="text-white/40 text-xs font-semibold">Không tìm thấy dữ liệu điểm danh thỏa mãn bộ lọc hiện tại</p>
+                              {(attendanceFilterStatus !== "all" || attendanceSearchTerm !== "") && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAttendanceFilterStatus("all");
+                                    setAttendanceSearchTerm("");
+                                  }}
+                                  className="mt-3 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 font-bold border border-violet-500/20 text-[10px] rounded-lg transition"
+                                >
+                                  Đặt lại bộ lọc
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* 5. DOCUMENTS TAB */}
+                {detailTab === "documents" && (
+                  <div className="space-y-6">
+                    {(() => {
+                      const docList = detailEmployee.documents || [
+                        { id: `doc-ccd-${detailEmployee.id}`, name: `CCCD_Nguyen_Van_${detailEmployee.name.split(" ").pop() || "NhanVien"}.jpg`, type: "JPG", uploadDate: "10/03/2026", size: "380 KB" },
+                        { id: `doc-hd-${detailEmployee.id}`, name: `Hop_dong_lao_dong_${detailEmployee.code}.pdf`, type: "PDF", uploadDate: detailEmployee.startDate || "20/05/2026", size: "1.4 MB" },
+                        { id: `doc-bc-${detailEmployee.id}`, name: `Bang_cu_nhan_chuyen_nganh.pdf`, type: "PDF", uploadDate: "14/02/2026", size: "2.5 MB" }
+                      ];
+
+                      const filteredDocs = docList.filter(doc => {
+                        const matchesQuery = !docSearchQuery || doc.name.toLowerCase().includes(docSearchQuery.toLowerCase());
+                        const matchesType = docFilterType === "all" || 
+                          (docFilterType === "PDF" && doc.type === "PDF") ||
+                          (docFilterType === "DOCX" && (doc.type === "DOCX" || doc.type === "DOC")) ||
+                          (docFilterType === "Image" && (doc.type === "JPG" || doc.type === "PNG" || doc.type === "JPEG" || doc.type === "GIF"));
+                        return matchesQuery && matchesType;
+                      });
+
+                      const handleSimulatedUpload = (e: FormEvent) => {
+                        e.preventDefault();
+                        if (!newDocName.trim()) return;
+                        
+                        setIsUploadingDoc(true);
+                        setTimeout(() => {
+                          const ext = newDocType.toLowerCase();
+                          const filename = newDocName.toLowerCase().endsWith(`.${ext}`) 
+                            ? newDocName 
+                            : `${newDocName}.${ext}`;
+                          const mockSize = `${(Math.random() * 2 + 0.5).toFixed(1)} MB`;
+                          
+                          handleAddDocumentToEmployee(detailEmployee.id, filename, newDocType, mockSize);
+                          setNewDocName("");
+                          setIsUploadingDoc(false);
+                        }, 800);
+                      };
+
+                      return (
+                        <>
+                          {/* Heading & description */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
+                            <div>
+                              <h3 className="text-xs font-bold text-violet-400 uppercase tracking-widest flex items-center space-x-2">
+                                <span className="w-1.5 h-3 bg-violet-500 rounded-full" />
+                                <span>HỒ SƠ TÀI LIỆU & GIẤY TỜ PHÁP LÝ</span>
+                              </h3>
+                              <p className="text-[11px] text-white/40 mt-1">Lưu trữ các hồ sơ nhân thân, bằng cấp chuyên môn, và cam kết pháp lý.</p>
+                            </div>
+                            <span className="text-[10px] bg-white/5 border border-white/10 text-white/60 px-3 py-1 rounded font-mono shrink-0 self-start sm:self-center">
+                              {filteredDocs.length} tài liệu
+                            </span>
+                          </div>
+
+                          {/* Search, Filter, and Upload Section */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Left part: Search & Type Filter (cols-2) */}
+                            <div className="md:col-span-2 space-y-3.5 p-4 bg-slate-900/20 border border-slate-900/80 rounded-2xl">
+                              <span className="text-[10px] text-slate-500 uppercase font-black tracking-wider block">Bộ lọc tìm kiếm tài liệu</span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="text-[10px] text-slate-500 block mb-1">Tên tài liệu</label>
+                                  <input
+                                    type="text"
+                                    value={docSearchQuery}
+                                    onChange={(e) => setDocSearchQuery(e.target.value)}
+                                    placeholder="Tìm: CCCD, bằng cấp, HĐ..."
+                                    className="w-full px-3 py-1.5 bg-[#0B0D12] border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition shadow-inner"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-slate-500 block mb-1">Định dạng file</label>
+                                  <select
+                                    value={docFilterType}
+                                    onChange={(e) => setDocFilterType(e.target.value)}
+                                    className="w-full px-3 py-1.5 bg-[#0B0D12] border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition cursor-pointer"
+                                  >
+                                    <option value="all">Tất cả định dạng</option>
+                                    <option value="PDF">Tài liệu PDF (.pdf)</option>
+                                    <option value="DOCX">Văn bản Word (.docx)</option>
+                                    <option value="Image">Hình ảnh (.jpg, .png)</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right part: Upload form (cols-1) */}
+                            <form onSubmit={handleSimulatedUpload} className="p-4 bg-violet-950/5 border border-violet-500/10 rounded-2xl space-y-3.5 flex flex-col justify-between">
+                              <div>
+                                <span className="text-[10px] text-violet-400 uppercase font-black tracking-wider block mb-2">Thêm tài liệu mới</span>
+                                <input
+                                  type="text"
+                                  required
+                                  value={newDocName}
+                                  onChange={(e) => setNewDocName(e.target.value)}
+                                  placeholder="Nhập tên tài liệu..."
+                                  className="w-full px-3 py-1.5 bg-[#0B0D12] border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition"
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 pt-1">
+                                <select
+                                  value={newDocType}
+                                  onChange={(e) => setNewDocType(e.target.value)}
+                                  className="w-full px-2 py-1 bg-[#0B0D12] border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition cursor-pointer"
+                                >
+                                  <option value="PDF">PDF</option>
+                                  <option value="DOCX">DOCX</option>
+                                  <option value="JPG">JPG</option>
+                                  <option value="PNG">PNG</option>
+                                </select>
+                                <button
+                                  type="submit"
+                                  disabled={isUploadingDoc}
+                                  className="w-full py-1 bg-violet-600 hover:bg-violet-500 disabled:bg-violet-800 text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center space-x-1"
+                                >
+                                  {isUploadingDoc ? (
+                                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <span>Tải lên</span>
+                                  )}
+                                </button>
+                              </div>
+                            </form>
+                          </div>
+
+                          {/* Documents List */}
+                          {filteredDocs.length > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {filteredDocs.map((doc) => {
+                                const isPdf = doc.type === "PDF";
+                                const isWord = doc.type === "DOC" || doc.type === "DOCX";
+                                const isImage = doc.type === "JPG" || doc.type === "PNG" || doc.type === "JPEG" || doc.type === "GIF";
+
+                                return (
+                                  <div 
+                                    key={doc.id}
+                                    className="p-4 bg-[#0B0D12] border border-slate-800 hover:border-slate-700/60 rounded-2xl flex items-center justify-between gap-4 transition group"
+                                  >
+                                    <div className="flex items-center space-x-3.5 min-w-0">
+                                      {/* Doc Icon wrapper */}
+                                      <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center font-display font-black text-xs border ${
+                                        isPdf 
+                                          ? "bg-rose-500/10 text-rose-400 border-rose-500/20" 
+                                          : isWord 
+                                            ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                            : isImage
+                                              ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                                              : "bg-white/5 text-slate-400 border-white/5"
                                       }`}>
-                                        <span className={`w-1 h-1 rounded-full ${
-                                          log.status === "Đúng giờ" 
-                                            ? "bg-emerald-400" 
-                                            : log.status === "Đi muộn"
-                                              ? "bg-amber-400"
-                                              : log.status === "Nghỉ phép"
-                                                ? "bg-indigo-400"
-                                                : "bg-red-400"
-                                        }`} />
-                                        <span>{log.status}</span>
-                                      </span>
-                                    </td>
-                                    <td className="px-5 py-3.5 text-slate-400 text-right italic font-sans truncate max-w-[150px] border-none">
-                                      {log.notes || "—"}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
+                                        {doc.type}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <h5 className="text-white text-xs font-semibold truncate pr-1 group-hover:text-violet-400 transition-colors" title={doc.name}>
+                                          {doc.name}
+                                        </h5>
+                                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                          {doc.size || "800 KB"} • {doc.uploadDate}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2 shrink-0">
+                                      {/* Download simulate */}
+                                      <a
+                                        href="#"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          alert(`Đang khởi tạo liên kết xem trực tuyến tài liệu: ${doc.name}`);
+                                        }}
+                                        className="p-2 rounded-lg bg-white/5 hover:bg-slate-800 text-slate-400 hover:text-white transition"
+                                        title="Xem trực tuyến / Tải về"
+                                      >
+                                        <Eye className="w-4 h-4" />
+                                      </a>
+                                      {/* Delete file */}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (confirm(`Bạn có chắc chắn muốn gỡ bỏ tài liệu "${doc.name}" không?`)) {
+                                            handleDeleteDocumentFromEmployee(detailEmployee.id, doc.id);
+                                          }
+                                        }}
+                                        className="p-1.5 rounded-lg bg-red-500/5 hover:bg-red-500/15 text-red-400 border border-red-500/10 hover:border-red-500/20 transition cursor-pointer"
+                                        title="Gỡ bỏ tài liệu"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="py-12 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
+                              <FileText className="w-8 h-8 text-white/10 mx-auto mb-2 animate-pulse" />
+                              <p className="text-white/40 text-xs font-medium">Chưa lưu trữ bất kỳ hồ sơ, chứng chỉ hay giấy tờ nào</p>
+                              {(docSearchQuery !== "" || docFilterType !== "all") && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setDocSearchQuery("");
+                                    setDocFilterType("all");
+                                  }}
+                                  className="mt-3 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 font-bold border border-violet-500/20 text-[10px] rounded-lg transition"
+                                >
+                                  Đặt lại bộ lọc
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </>
                       );
                     })()}
                   </div>

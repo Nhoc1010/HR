@@ -325,6 +325,30 @@ export const initialCandidates: Candidate[] = [
     cvSummary: "Phù hợp kỳ vọng của đội ngũ kỹ thuật Tech Lead.",
     interviewType: "Phỏng vấn với Giám đốc",
   },
+  {
+    id: "cand06",
+    name: "Lê Minh Tuấn",
+    position: "React Developer",
+    phone: "0966777888",
+    email: "tuanle@gmail.com",
+    status: "Không đạt",
+    score: 55,
+    notes: "Kiến thức Javascript cơ bản còn chưa vững, gặp khó khăn khi giải thích React hooks lifecycle.",
+    cvSummary: "Cần tích luỹ thêm kinh nghiệm thực tế.",
+    interviewType: "Phỏng vấn Kỹ thuật",
+  },
+  {
+    id: "cand07",
+    name: "Nguyễn Thị Mai Chi",
+    position: "UI/UX Designer",
+    phone: "0345678901",
+    email: "maichi.design@gmail.com",
+    status: "Không đạt",
+    score: 62,
+    notes: "Portfolio chủ yếu là các dự án mẫu, khả năng thuyết trình ý tưởng thiết kế còn lúng túng.",
+    cvSummary: "Kỹ năng thực tế yếu so với level yêu cầu.",
+    interviewType: "Phỏng vấn Sơ vấn",
+  }
 ];
 
 export const initialContracts: Contract[] = [
