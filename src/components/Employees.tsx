@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, Dispatch, SetStateAction, FormEvent, useMemo } from "react";
+import { useState, Dispatch, SetStateAction, FormEvent, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Plus, 
@@ -30,7 +30,10 @@ import {
   Award,
   History,
   UserCheck,
-  DollarSign
+  DollarSign,
+  Edit2,
+  Building,
+  Settings
 } from "lucide-react";
 import { Employee, Contract, Payroll as PayrollType, Attendance } from "../types";
 import DatePicker from "./DatePicker";
@@ -44,6 +47,8 @@ interface EmployeesProps {
   setPayroll: Dispatch<SetStateAction<PayrollType[]>>;
   attendance: Attendance[];
   setAttendance: Dispatch<SetStateAction<Attendance[]>>;
+  depts: string[];
+  setDepts: (newDepts: string[] | ((prev: string[]) => string[])) => void;
 }
 
 export default function Employees({ 
@@ -54,7 +59,9 @@ export default function Employees({
   payroll,
   setPayroll,
   attendance,
-  setAttendance
+  setAttendance,
+  depts,
+  setDepts
 }: EmployeesProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDept, setSelectedDept] = useState("Tất cả phòng ban");
@@ -114,7 +121,76 @@ export default function Employees({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const depts = ["Kỹ thuật", "Marketing", "Kinh doanh", "Nhân sự", "Tài chính", "Hành chính"];
+  const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
+  const [editingDeptIndex, setEditingDeptIndex] = useState<number | null>(null);
+  const [editingDeptValue, setEditingDeptValue] = useState("");
+  const [newDeptModalName, setNewDeptModalName] = useState("");
+  const [deptModalError, setDeptModalError] = useState<string | null>(null);
+
+  const handleAddDept = () => {
+    const trimmed = newDeptModalName.trim();
+    if (!trimmed) {
+      setDeptModalError("Tên phòng ban không được để trống!");
+      return;
+    }
+    const exists = depts.some(d => d.toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      setDeptModalError("Phòng ban này đã tồn tại!");
+      return;
+    }
+    setDepts([...depts, trimmed]);
+    setNewDeptModalName("");
+    setDeptModalError(null);
+  };
+
+  const handleEditDept = (index: number) => {
+    const trimmed = editingDeptValue.trim();
+    if (!trimmed) {
+      setDeptModalError("Tên phòng ban không được để trống!");
+      return;
+    }
+    const oldName = depts[index];
+    if (oldName === trimmed) {
+      setEditingDeptIndex(null);
+      setDeptModalError(null);
+      return;
+    }
+    const exists = depts.some((d, idx) => idx !== index && d.toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      setDeptModalError("Phòng ban này đã tồn tại!");
+      return;
+    }
+
+    // Rename
+    const updated = [...depts];
+    updated[index] = trimmed;
+    setDepts(updated);
+
+    // Update all matching employees to rename their department
+    const updatedEmployees = employees.map(emp => {
+      if (emp.department === oldName) {
+        return { ...emp, department: trimmed };
+      }
+      return emp;
+    });
+    setEmployees(updatedEmployees);
+
+    setEditingDeptIndex(null);
+    setDeptModalError(null);
+  };
+
+  const handleDeleteDept = (index: number) => {
+    const name = depts[index];
+    const hasEmployees = employees.some(emp => emp.department === name);
+    if (hasEmployees) {
+      setDeptModalError(`Không thể xóa phòng ban "${name}" vì vẫn tồn tại nhân sự đang làm việc!`);
+      return;
+    }
+
+    const updated = depts.filter((_, idx) => idx !== index);
+    setDepts(updated);
+    setDeptModalError(null);
+  };
 
   // Bulk Generation States
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -357,7 +433,7 @@ export default function Employees({
       setStartDate("2026-05-20");
       setBirthDate("1995-01-01");
       setSalary(15000000);
-      setDepartment("Kỹ thuật");
+      setDepartment(depts[0] || "Kỹ thuật");
       setGender("Nam");
       setAddress("");
       setBhxhNumber("");
@@ -547,6 +623,19 @@ export default function Employees({
           </button>
 
           <button
+            onClick={() => {
+              setDeptModalError(null);
+              setNewDeptModalName("");
+              setEditingDeptIndex(null);
+              setIsDeptModalOpen(true);
+            }}
+            className="px-4 py-3 rounded-xl border border-white/5 bg-slate-900 text-slate-300 hover:bg-slate-850 font-medium text-sm flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-lg active:scale-95 duration-200"
+          >
+            <Settings className="w-4 h-4 text-violet-400 animate-spin-slow" />
+            <span>⚙️ Quản lý phòng ban</span>
+          </button>
+
+          <button
             onClick={() => openFormModal(null)}
             className="px-5 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-medium text-sm flex items-center justify-center space-x-2 shrink-0 transition-transform active:scale-95 cursor-pointer glow-purple shadow-lg"
           >
@@ -601,7 +690,22 @@ export default function Employees({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-white/5">
           {/* Dept select */}
           <div className="space-y-1.5">
-            <label className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Phòng ban</label>
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Phòng ban *</label>
+              <button
+                onClick={() => {
+                  setDeptModalError(null);
+                  setNewDeptModalName("");
+                  setEditingDeptIndex(null);
+                  setIsDeptModalOpen(true);
+                }}
+                className="text-[10px] text-violet-400 hover:text-violet-300 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                title="⚙️ Quản lý danh mục phòng ban"
+              >
+                <Settings className="w-3 h-3 text-violet-400 animate-spin-slow" />
+                <span>⚙️ Quản lý phòng ban</span>
+              </button>
+            </div>
             <div className="relative">
               <select
                 value={selectedDept}
@@ -727,14 +831,19 @@ export default function Employees({
                       <h4 className="text-sm font-semibold text-white group-hover:text-violet-400 transition-colors">{emp.name}</h4>
                       <p className="text-[10px] text-white/40 font-mono font-medium">{emp.code}</p>
                     </div>
-                    <span className={`ml-auto text-[10px] px-2.5 py-1 rounded-full font-medium ${
+                    <span className={`ml-auto text-[10px] px-2.5 py-1 rounded-full font-medium flex items-center gap-1.5 transition-all ${
                       emp.status === "Đang làm" 
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.15)]" 
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 shadow-[0_0_10px_rgba(16,185,129,0.15)] animate-breathing-green" 
                         : emp.status === "Nghỉ phép" 
-                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.15)]" 
+                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/25 shadow-[0_0_10px_rgba(245,158,11,0.15)] animate-breathing-amber" 
                           : "bg-white/5 text-white/40 border border-white/5"
                     }`}>
-                      {emp.status}
+                      {(emp.status === "Đang làm" || emp.status === "Nghỉ phép") && (
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          emp.status === "Đang làm" ? "bg-emerald-400" : "bg-amber-400"
+                        }`} />
+                      )}
+                      <span>{emp.status}</span>
                     </span>
                   </div>
 
@@ -787,12 +896,37 @@ export default function Employees({
       {/* Form Dialog Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="fixed inset-0 flex items-center justify-center p-4 z-50 overflow-y-auto">
+            {/* Backdrop */}
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl relative"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              onClick={() => setIsModalOpen(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md cursor-pointer"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ scale: 0.93, opacity: 0, y: 30 }}
+              animate={{ 
+                scale: 1, 
+                opacity: 1, 
+                y: 0,
+                transition: {
+                  type: "spring",
+                  damping: 25,
+                  stiffness: 300
+                }
+              }}
+              exit={{ 
+                scale: 0.95, 
+                opacity: 0, 
+                y: 20,
+                transition: { duration: 0.2 }
+              }}
+              className="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl relative z-10"
             >
               {/* Top Banner */}
               <div className="p-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
@@ -983,7 +1117,23 @@ export default function Employees({
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-xs text-slate-400 font-medium">Phòng ban *</label>
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs text-slate-400 font-medium">Phòng ban *</label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeptModalError(null);
+                                setNewDeptModalName("");
+                                setEditingDeptIndex(null);
+                                setIsDeptModalOpen(true);
+                              }}
+                              className="text-[10px] text-violet-400 hover:text-violet-300 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                              title="⚙️ Quản lý danh mục phòng ban"
+                            >
+                              <Settings className="w-3 h-3 text-violet-400 animate-spin-slow" />
+                              <span>⚙️ Quản lý</span>
+                            </button>
+                          </div>
                           <select
                             value={department}
                             onChange={(e) => setDepartment(e.target.value)}
@@ -1556,12 +1706,37 @@ export default function Employees({
       {/* Detailed Employee Dossier Modal */}
       <AnimatePresence>
         {isDetailModalOpen && detailEmployee && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="fixed inset-0 flex items-center justify-center p-4 z-50 overflow-y-auto select-text">
+            {/* Backdrop */}
             <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              className="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl relative"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              onClick={() => setIsDetailModalOpen(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md cursor-pointer"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ scale: 0.93, opacity: 0, y: 30 }}
+              animate={{ 
+                scale: 1, 
+                opacity: 1, 
+                y: 0,
+                transition: {
+                  type: "spring",
+                  damping: 25,
+                  stiffness: 300
+                }
+              }}
+              exit={{ 
+                scale: 0.95, 
+                opacity: 0, 
+                y: 20,
+                transition: { duration: 0.2 }
+              }}
+              className="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl relative z-10"
             >
               {/* Profile Background & Close */}
               <div className="p-8 bg-slate-900 border-b border-slate-800 relative">
@@ -1582,14 +1757,19 @@ export default function Employees({
                   <div className="space-y-1.5 flex-1">
                     <div className="flex flex-wrap items-center gap-2.5">
                       <h2 className="text-2xl font-bold text-white tracking-tight leading-none" id="detail-employee-name">{detailEmployee.name}</h2>
-                      <span className={`text-xs px-3 py-1 rounded-full font-semibold border ${
+                      <span className={`text-xs px-3 py-1 rounded-full font-semibold border flex items-center gap-1.5 transition-all ${
                         detailEmployee.status === "Đang làm" 
-                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.15)]" 
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25 shadow-[0_0_10px_rgba(16,185,129,0.15)] animate-breathing-green" 
                           : detailEmployee.status === "Nghỉ phép" 
-                            ? "bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.15)]" 
+                            ? "bg-amber-500/10 text-amber-400 border-amber-500/25 shadow-[0_0_10px_rgba(245,158,11,0.15)] animate-breathing-amber" 
                             : "bg-white/5 text-white/40 border-white/5"
                       }`}>
-                        {detailEmployee.status}
+                        {(detailEmployee.status === "Đang làm" || detailEmployee.status === "Nghỉ phép") && (
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            detailEmployee.status === "Đang làm" ? "bg-emerald-400" : "bg-amber-400"
+                          }`} />
+                        )}
+                        <span>{detailEmployee.status}</span>
                       </span>
                     </div>
 
@@ -2538,6 +2718,178 @@ export default function Employees({
                     Đóng
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Dynamic Department Management Modal */}
+      <AnimatePresence>
+        {isDeptModalOpen && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-[60] overflow-y-auto">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative"
+            >
+              {/* Header */}
+              <div className="p-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2.5 rounded-xl bg-violet-600 text-white shadow-lg shadow-violet-950/30">
+                    <Building className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-white">Quản Lý Phòng Ban</h2>
+                    <p className="text-xs text-slate-400">Thêm mới, đổi tên hoặc xóa các phòng ban.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDeptModalOpen(false)}
+                  className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Error Message Block */}
+              {deptModalError && (
+                <div className="mx-6 mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-start space-x-3">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-300 font-medium leading-relaxed">{deptModalError}</p>
+                </div>
+              )}
+
+              <div className="p-6 space-y-6">
+                {/* Form to Add New Department */}
+                <div className="space-y-2">
+                  <label className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Thêm phòng ban mới</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Nhập tên phòng ban cần thêm..."
+                      value={newDeptModalName}
+                      onChange={(e) => {
+                        setNewDeptModalName(e.target.value);
+                        if (deptModalError) setDeptModalError(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddDept();
+                        }
+                      }}
+                      className="flex-1 px-4 py-2.5 bg-slate-900 border border-slate-800 focus:border-violet-500/80 focus:ring-1 focus:ring-violet-500/30 focus:outline-none rounded-xl text-white text-xs placeholder-white/20 transition-all font-sans"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddDept}
+                      className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-xl transition duration-200 cursor-pointer shadow-lg active:scale-95 flex items-center space-x-1.5 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Thêm</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* List of Departments */}
+                <div className="space-y-3">
+                  <label className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Danh sách hiện tại ({depts.length})</label>
+                  <div className="max-h-[250px] overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+                    {depts.map((d, index) => {
+                      const empCount = employees.filter(emp => emp.department === d).length;
+                      const isEditing = editingDeptIndex === index;
+
+                      return (
+                        <div key={index} className="flex items-center justify-between p-3.5 bg-slate-900/40 border border-slate-800/80 rounded-2xl group hover:border-violet-500/20 transition-all">
+                          {isEditing ? (
+                            <div className="flex items-center gap-2 w-full">
+                              <input
+                                type="text"
+                                value={editingDeptValue}
+                                onChange={(e) => {
+                                  setEditingDeptValue(e.target.value);
+                                  if (deptModalError) setDeptModalError(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleEditDept(index);
+                                  } else if (e.key === "Escape") {
+                                    setEditingDeptIndex(null);
+                                  }
+                                }}
+                                className="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-800 focus:border-violet-500 focus:outline-none rounded-lg text-white text-xs font-sans"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleEditDept(index)}
+                                className="p-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20 transition-all"
+                                title="Lưu chỉnh sửa"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingDeptIndex(null)}
+                                className="p-1.5 bg-slate-800 text-slate-400 border border-slate-700 rounded-lg hover:text-white transition-all"
+                                title="Hủy bỏ"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex items-center space-x-2.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-violet-500/70" />
+                                <span className="text-xs text-white font-medium">{d}</span>
+                                <span className="px-2 py-0.5 rounded bg-slate-950 text-[10px] text-zinc-400 border border-white/[0.03]">
+                                  {empCount} nhân sự
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingDeptIndex(index);
+                                    setEditingDeptValue(d);
+                                    setDeptModalError(null);
+                                  }}
+                                  className="p-1.5 bg-white/5 border border-white/5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all cursor-pointer"
+                                  title="Đổi tên"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteDept(index)}
+                                  className="p-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:text-red-300 rounded-lg hover:bg-red-500/20 transition-all cursor-pointer"
+                                  title="Xóa phòng ban"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-6 bg-slate-900 border-t border-slate-800 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsDeptModalOpen(false)}
+                  className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs transition-transform active:scale-95 cursor-pointer shadow-lg glow-purple"
+                >
+                  Hoàn thành
+                </button>
               </div>
             </motion.div>
           </div>

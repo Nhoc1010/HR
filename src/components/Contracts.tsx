@@ -19,7 +19,9 @@ import {
   PenTool,
   TrendingUp,
   Award,
-  Hourglass
+  Hourglass,
+  RefreshCw,
+  Trash2
 } from "lucide-react";
 import { Employee, Contract } from "../types";
 
@@ -46,6 +48,9 @@ export default function Contracts({ employees, setEmployees, contracts, setContr
   // History detail viewer
   const [selectedContractHistory, setSelectedContractHistory] = useState<Contract | null>(null);
 
+  // Deletion confirmation state
+  const [deletingContract, setDeletingContract] = useState<Contract | null>(null);
+
   // New Contract creation state
   const [isCreating, setIsCreating] = useState(false);
   const [newContractEmpId, setNewContractEmpId] = useState("");
@@ -54,6 +59,95 @@ export default function Contracts({ employees, setEmployees, contracts, setContr
   const [newContractEndDate, setNewContractEndDate] = useState("2027-06-01");
   const [newContractSalary, setNewContractSalary] = useState(15000000);
   const [newContractAllowance, setNewContractAllowance] = useState(1000000);
+
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  const handleSyncData = () => {
+    let syncedContractsCount = 0;
+    let syncedEmployeesCount = 0;
+
+    const newContracts = contracts.map(con => {
+      const emp = employees.find(e => e.id === con.employeeId);
+      if (emp) {
+        let changed = false;
+        const updatedCon = { ...con };
+        
+        if (con.employeeName !== emp.name) {
+          updatedCon.employeeName = emp.name;
+          changed = true;
+        }
+
+        if (con.basicSalary !== emp.salary) {
+          updatedCon.basicSalary = emp.salary;
+          changed = true;
+        }
+
+        if (con.type !== emp.contractType && emp.contractType) {
+          updatedCon.type = emp.contractType as any;
+          changed = true;
+        }
+
+        if (con.startDate !== emp.contractStartDate && emp.contractStartDate) {
+          updatedCon.startDate = emp.contractStartDate;
+          changed = true;
+        }
+
+        if (changed) {
+          syncedContractsCount++;
+        }
+        return updatedCon;
+      }
+      return con;
+    });
+
+    const newEmployees = employees.map(emp => {
+      const con = contracts.find(c => c.employeeId === emp.id);
+      if (con) {
+        let changed = false;
+        const updatedEmp = { ...emp };
+
+        if (updatedEmp.name !== con.employeeName) {
+          updatedEmp.name = con.employeeName;
+          changed = true;
+        }
+
+        if (emp.salary !== con.basicSalary) {
+          updatedEmp.salary = con.basicSalary;
+          changed = true;
+        }
+
+        if (emp.contractType !== con.type) {
+          updatedEmp.contractType = con.type;
+          changed = true;
+        }
+
+        if (emp.contractStartDate !== con.startDate) {
+          updatedEmp.contractStartDate = con.startDate;
+          changed = true;
+        }
+
+        if (changed) {
+          syncedEmployeesCount++;
+        }
+        return updatedEmp;
+      }
+      return emp;
+    });
+
+    if (syncedContractsCount > 0 || syncedEmployeesCount > 0) {
+      setContracts(newContracts);
+      setEmployees(newEmployees);
+      setSyncMessage(
+        `Đồng bộ hoàn tất! Đã cập nhật ${syncedContractsCount} hợp đồng và ${syncedEmployeesCount} hồ sơ nhân sự đồng bộ chéo tương ứng.`
+      );
+    } else {
+      setSyncMessage("Tất cả hợp đồng và thông tin nhân sự đã đồng bộ trùng khớp hoàn toàn!");
+    }
+
+    setTimeout(() => {
+      setSyncMessage(null);
+    }, 5000);
+  };
 
   // Filter & Search logic
   const filteredContracts = contracts.filter((c) => {
@@ -166,6 +260,23 @@ export default function Contracts({ employees, setEmployees, contracts, setContr
     setRenewNote("Gia hạn điều chỉnh định kỳ tăng bậc");
   };
 
+  const handleDeleteContract = () => {
+    if (!deletingContract) return;
+    const contractId = deletingContract.id;
+    setContracts(prev => prev.filter(c => c.id !== contractId));
+    setEmployees(prev => prev.map(emp => {
+      if (emp.id === deletingContract.employeeId) {
+        return {
+          ...emp,
+          contractType: "",
+          contractStartDate: ""
+        };
+      }
+      return emp;
+    }));
+    setDeletingContract(null);
+  };
+
   const renderContractCountdown = (con: Contract) => {
     const today = new Date("2026-05-20");
 
@@ -258,14 +369,40 @@ export default function Contracts({ employees, setEmployees, contracts, setContr
           <h1 className="text-2xl font-display font-bold text-white tracking-tight">Hợp đồng lao động</h1>
           <p className="text-white/45 text-sm mt-1">Đồng bộ tự động thông tin pháp lý, loại hợp đồng và điều khoản phúc lợi</p>
         </div>
-        <button
-          onClick={() => setIsCreating(true)}
-          className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer glow-purple"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Thêm hợp đồng</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSyncData}
+            className="px-4 py-2.5 bg-slate-900 border border-white/5 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer"
+          >
+            <RefreshCw className="w-4 h-4 text-violet-450" />
+            <span>Đồng bộ thông tin</span>
+          </button>
+          <button
+            onClick={() => setIsCreating(true)}
+            className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer glow-purple"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Thêm hợp đồng</span>
+          </button>
+        </div>
       </header>
+
+      {/* Sync Message Notification Banner */}
+      <AnimatePresence>
+        {syncMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="p-4 bg-[#161920] border border-violet-500/20 rounded-2xl flex items-center space-x-3 shadow-lg"
+          >
+            <div className="p-1.5 rounded-lg bg-violet-600/20 text-violet-400">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            </div>
+            <p className="text-xs text-slate-300 font-medium leading-relaxed">{syncMessage}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
@@ -433,6 +570,14 @@ export default function Contracts({ employees, setEmployees, contracts, setContr
                         title="Xem lịch sử thay đổi"
                       >
                         <History className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        onClick={() => setDeletingContract(con)}
+                        className="p-1.5 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-all text-white/40 cursor-pointer"
+                        title="Xóa hợp đồng"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>
@@ -744,6 +889,60 @@ export default function Contracts({ employees, setEmployees, contracts, setContr
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Deletion Confirmation Modal */}
+      <AnimatePresence>
+        {deletingContract && (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#161920] border border-white/10 rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl"
+            >
+              <div className="p-5 border-b border-white/5 flex items-center justify-between bg-rose-500/5">
+                <div className="flex items-center gap-2 text-rose-450 font-bold">
+                  <AlertTriangle className="w-5 h-5 text-rose-400" />
+                  <h3 className="font-bold text-white text-sm">Xác nhận xóa hợp đồng</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDeletingContract(null)}
+                  className="p-1.5 rounded-lg bg-white/5 text-white/50 hover:text-white transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <p className="text-xs text-white/70 leading-relaxed font-sans">
+                  Bạn có chắc chắn muốn xóa hợp đồng của nhân sự <strong className="text-white font-bold">{deletingContract.employeeName}</strong> (<span className="font-mono text-[10.5px] text-[#A855F7]">{deletingContract.id}</span>)?
+                </p>
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[10px] text-rose-400 leading-relaxed font-sans">
+                  <strong>⚠️ Lưu ý:</strong> Hành động này sẽ gỡ bỏ liên kết hợp đồng này khỏi hồ sơ nhân viên tương ứng. Dữ liệu sau khi xóa sẽ không thể phục hồi.
+                </div>
+              </div>
+
+              <div className="p-5 border-t border-white/5 bg-[#111319]/50 flex justify-end gap-2.5 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setDeletingContract(null)}
+                  className="px-4 py-2 border border-white/10 hover:bg-white/5 rounded-xl text-white/80 cursor-pointer transition-all"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteContract}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold cursor-pointer transition-all hover:shadow-lg hover:shadow-rose-500/15"
+                >
+                  Thực hiện xóa
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

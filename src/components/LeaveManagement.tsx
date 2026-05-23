@@ -13,7 +13,8 @@ import {
   Sparkles, 
   AlertCircle,
   Clock,
-  Briefcase
+  Briefcase,
+  Edit2
 } from "lucide-react";
 import { Employee, LeaveRequest } from "../types";
 
@@ -32,11 +33,13 @@ export default function LeaveManagement({
 }: LeaveManagementProps) {
   
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingRequest, setEditingRequest] = useState<LeaveRequest | null>(null);
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [startDate, setStartDate] = useState("2026-05-20");
   const [endDate, setEndDate] = useState("2026-05-21");
   const [reason, setReason] = useState("");
   const [leaveType, setLeaveType] = useState<"Phép năm" | "Nghỉ ốm" | "Việc riêng" | "Thai sản">("Phép năm");
+  const [tempStatus, setTempStatus] = useState<"Chờ duyệt" | "Đã duyệt" | "Bị từ chối">("Chờ duyệt");
   const [formError, setFormError] = useState<string | null>(null);
 
   // Leave action
@@ -46,11 +49,25 @@ export default function LeaveManagement({
         // If approved, update associated employee status to "Nghỉ phép"
         if (decision === "Đã duyệt") {
           setEmployees(empList => empList.map(e => e.id === req.employeeId ? { ...e, status: "Nghỉ phép" } : e));
+        } else if (req.status === "Đã duyệt" && decision === "Bị từ chối") {
+          setEmployees(empList => empList.map(e => e.id === req.employeeId && e.status === "Nghỉ phép" ? { ...e, status: "Đang làm" } : e));
         }
         return { ...req, status: decision };
       }
       return req;
     }));
+  };
+
+  const handleEditClick = (req: LeaveRequest) => {
+    setEditingRequest(req);
+    setSelectedEmpId(req.employeeId);
+    setStartDate(req.startDate);
+    setEndDate(req.endDate);
+    setLeaveType(req.type);
+    setReason(req.reason);
+    setTempStatus(req.status);
+    setFormError(null);
+    setIsFormOpen(true);
   };
 
   const handleCreateRequest = (e: FormEvent) => {
@@ -64,21 +81,64 @@ export default function LeaveManagement({
     const emp = employees.find(x => x.id === selectedEmpId);
     if (!emp) return;
 
-    const newRequest: LeaveRequest = {
-      id: `lr-${Date.now()}`,
-      employeeId: emp.id,
-      employeeName: emp.name,
-      startDate: startDate,
-      endDate: endDate,
-      reason: reason,
-      type: leaveType,
-      status: "Chờ duyệt"
-    };
+    if (editingRequest) {
+      const oldEmpId = editingRequest.employeeId;
+      const oldStatus = editingRequest.status;
+      const newEmpId = emp.id;
+      const newStatus = tempStatus;
 
-    setLeaveRequests([newRequest, ...leaveRequests]);
+      setEmployees(empList => empList.map(e => {
+        let status = e.status;
+        if (e.id === oldEmpId && oldStatus === "Đã duyệt") {
+          if (oldEmpId !== newEmpId || newStatus !== "Đã duyệt") {
+            if (status === "Nghỉ phép") status = "Đang làm";
+          }
+        }
+        if (e.id === newEmpId && newStatus === "Đã duyệt") {
+          status = "Nghỉ phép";
+        }
+        return { ...e, status };
+      }));
+
+      setLeaveRequests(prev => prev.map(req => {
+        if (req.id === editingRequest.id) {
+          return {
+            ...req,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            startDate: startDate,
+            endDate: endDate,
+            reason: reason,
+            type: leaveType,
+            status: tempStatus
+          };
+        }
+        return req;
+      }));
+      setEditingRequest(null);
+    } else {
+      const newRequest: LeaveRequest = {
+        id: `lr-${Date.now()}`,
+        employeeId: emp.id,
+        employeeName: emp.name,
+        startDate: startDate,
+        endDate: endDate,
+        reason: reason,
+        type: leaveType,
+        status: tempStatus
+      };
+
+      if (tempStatus === "Đã duyệt") {
+        setEmployees(empList => empList.map(e => e.id === emp.id ? { ...e, status: "Nghỉ phép" } : e));
+      }
+
+      setLeaveRequests([newRequest, ...leaveRequests]);
+    }
+
     setIsFormOpen(false);
     setSelectedEmpId("");
     setReason("");
+    setTempStatus("Chờ duyệt");
   };
 
   // Stats
@@ -189,23 +249,40 @@ export default function LeaveManagement({
                   </blockquote>
                 </div>
 
-                {/* Approve Decides */}
-                {req.status === "Chờ duyệt" && (
-                  <div className="flex items-center space-x-2 shrink-0 md:self-center">
+                 {/* Approve Decides or Edit Buttons */}
+                <div className="flex items-center space-x-2 shrink-0 md:self-center">
+                  {req.status === "Chờ duyệt" ? (
+                    <>
+                      <button
+                        onClick={() => handleDecideLeave(req.id, "Bị từ chối")}
+                        className="px-4 py-2 border border-slate-800 hover:border-red-500/30 text-rose-400 hover:text-rose-300 text-xs font-semibold rounded-lg shrink-0 transition-colors cursor-pointer"
+                      >
+                        Từ chối
+                      </button>
+                      <button
+                        onClick={() => handleDecideLeave(req.id, "Đã duyệt")}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shrink-0 transition-all cursor-pointer shadow-lg hover:scale-103"
+                      >
+                        Phê duyệt đơn
+                      </button>
+                      <button
+                        onClick={() => handleEditClick(req)}
+                        className="p-2 border border-slate-800 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all cursor-pointer flex items-center justify-center"
+                        title="Chỉnh sửa đơn"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
                     <button
-                      onClick={() => handleDecideLeave(req.id, "Bị từ chối")}
-                      className="px-4 py-2 border border-slate-800 hover:border-red-500/30 text-rose-400 hover:text-rose-300 text-xs font-semibold rounded-lg shrink-0 transition-colors cursor-pointer"
+                      onClick={() => handleEditClick(req)}
+                      className="px-4 py-2 bg-slate-900 border border-slate-800 hover:border-violet-500/30 text-slate-300 hover:text-violet-400 text-xs font-semibold rounded-lg shrink-0 transition-all cursor-pointer flex items-center gap-1.5"
                     >
-                      Từ chối
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>Điều chỉnh đơn</span>
                     </button>
-                    <button
-                      onClick={() => handleDecideLeave(req.id, "Đã duyệt")}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shrink-0 transition-all cursor-pointer shadow-lg hover:scale-103"
-                    >
-                      Phê duyệt đơn
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </motion.div>
             ))}
           </AnimatePresence>
@@ -235,11 +312,21 @@ export default function LeaveManagement({
                     <Calendar className="w-4 h-4" />
                   </span>
                   <div>
-                    <h3 className="text-md font-bold text-white">Lập Đơn Đăng Ký Nghỉ Phép</h3>
-                    <p className="text-[10px] text-slate-400">Tạo đơn nghỉ nhanh cho nhân viên dã xin trực tiếp.</p>
+                    <h3 className="text-md font-bold text-white">
+                      {editingRequest ? "Cập Nhật & Điều Chỉnh Đơn Nghỉ Phép" : "Lập Đơn Đăng Ký Nghỉ Phép"}
+                    </h3>
+                    <p className="text-[10px] text-slate-400">
+                      {editingRequest ? "Chỉnh sửa thông tin đơn và trạng thái phê duyệt." : "Tạo đơn nghỉ nhanh cho nhân viên đã xin trực tiếp."}
+                    </p>
                   </div>
                 </div>
-                <button onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
+                <button 
+                  onClick={() => {
+                    setIsFormOpen(false);
+                    setEditingRequest(null);
+                  }} 
+                  className="text-slate-400 hover:text-white cursor-pointer"
+                >
                   <XCircle className="w-5 h-5" />
                 </button>
               </div>
@@ -279,7 +366,7 @@ export default function LeaveManagement({
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-905 border border-slate-800 rounded-xl text-white text-xs focus:outline-none"
+                      className="w-full px-3 py-2 bg-slate-905 border border-slate-805 rounded-xl text-white text-xs focus:outline-none focus:border-violet-500"
                     />
                   </div>
                   <div className="space-y-1">
@@ -288,7 +375,7 @@ export default function LeaveManagement({
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-905 border border-slate-800 rounded-xl text-white text-xs focus:outline-none"
+                      className="w-full px-3 py-2 bg-slate-905 border border-slate-805 rounded-xl text-white text-xs focus:outline-none focus:border-violet-500"
                     />
                   </div>
                 </div>
@@ -298,12 +385,26 @@ export default function LeaveManagement({
                   <select
                     value={leaveType}
                     onChange={(e) => setLeaveType(e.target.value as any)}
-                    className="w-full px-3 py-2.5 bg-slate-905 border border-slate-800 rounded-xl text-white text-sm focus:outline-none"
+                    className="w-full px-3 py-2.5 bg-slate-905 border border-slate-850 rounded-xl text-white text-sm focus:outline-none focus:border-violet-500"
                   >
                     <option value="Phép năm">Nghỉ Phép năm</option>
                     <option value="Nghỉ ốm">Nghỉ ốm (Có BHXH)</option>
                     <option value="Việc riêng">Nghỉ việc riêng (Không lương)</option>
                     <option value="Thai sản">Nghỉ Thai sản</option>
+                  </select>
+                </div>
+
+                {/* Status Options for fine-grained editing */}
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">Trạng thái phê duyệt *</label>
+                  <select
+                    value={tempStatus}
+                    onChange={(e) => setTempStatus(e.target.value as any)}
+                    className="w-full px-3 py-2.5 bg-slate-905 border border-slate-850 rounded-xl text-white text-sm focus:outline-none focus:border-violet-500"
+                  >
+                    <option value="Chờ duyệt">Chờ duyệt</option>
+                    <option value="Đã duyệt">Đã duyệt (Phê duyệt)</option>
+                    <option value="Bị từ chối">Bị từ chối</option>
                   </select>
                 </div>
 
@@ -315,14 +416,17 @@ export default function LeaveManagement({
                     placeholder="VD: Nghỉ ốm đi bệnh viện chụp phim điều trị..."
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-905 border border-slate-800 rounded-xl text-white text-xs focus:outline-none"
+                    className="w-full px-3 py-2 bg-slate-905 border border-slate-850 rounded-xl text-white text-xs focus:outline-none focus:border-violet-500"
                   />
                 </div>
 
                 <div className="pt-2 border-t border-slate-800/50 flex space-x-2">
                   <button
                     type="button"
-                    onClick={() => setIsFormOpen(false)}
+                    onClick={() => {
+                      setIsFormOpen(false);
+                      setEditingRequest(null);
+                    }}
                     className="flex-1 py-2 rounded-xl text-xs font-semibold border border-slate-800 hover:bg-slate-900 text-slate-400 hover:text-white cursor-pointer"
                   >
                     Hủy bỏ
@@ -331,7 +435,7 @@ export default function LeaveManagement({
                     type="submit"
                     className="flex-1 py-2 rounded-xl text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white cursor-pointer shadow-lg glow-purple"
                   >
-                    Gửi yêu cầu
+                    {editingRequest ? "Cập nhật đơn" : "Gửi yêu cầu"}
                   </button>
                 </div>
               </form>

@@ -5,7 +5,7 @@
 
 import { motion } from "motion/react";
 import { 
-  Gauge, 
+  LayoutDashboard, 
   Users, 
   Clock, 
   Calendar, 
@@ -15,7 +15,9 @@ import {
   ChevronRight,
   FileText,
   CreditCard,
-  LogOut
+  LogOut,
+  Building,
+  Settings
 } from "lucide-react";
 
 import { Employee } from "../types";
@@ -46,7 +48,7 @@ const getInitials = (name: string): string => {
 
 export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, currentAdmin, onProfileClick, onLogout }: SidebarProps) {
   const menuItems = [
-    { id: "dashboard", label: "Tổng quan HRM", icon: Gauge },
+    { id: "dashboard", label: "Tổng quan HRM", icon: LayoutDashboard },
     { id: "employees", label: "Nhân viên", icon: Users },
     { id: "attendance", label: "Chấm công", icon: Clock },
     { id: "leaves", label: "Nghỉ phép", icon: Calendar },
@@ -54,6 +56,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
     { id: "payroll", label: "Tính lương", icon: CreditCard },
     { id: "tasks", label: "Công việc", icon: Briefcase },
     { id: "recruitment", label: "Funnel Flow", icon: Network },
+    { id: "settings", label: "Cài đặt", icon: Settings },
   ];
 
   return (
@@ -82,7 +85,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
                 <h1 className="text-base font-display font-bold text-white tracking-tight flex items-baseline">
                   HRM <span className="text-violet-400 ml-1">Pro</span>
                 </h1>
-                <p className="text-[10px] text-white/40 font-mono">Quản lý nhân sự v3.0</p>
+                <p className="text-[10px] text-white/40 font-mono">Quản lý nhân sự v5.0</p>
               </div>
             </motion.div>
           )}
@@ -118,9 +121,11 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
                 id={`sidebar-menu-${item.id}`}
-                className={`w-full flex items-center rounded-xl p-3.5 text-sm font-medium transition-all relative overflow-hidden group cursor-pointer sidebar-item ${
+                className={`w-full flex items-center rounded-xl text-sm font-medium transition-all relative overflow-hidden group cursor-pointer sidebar-item ${
+                  item.id === "dashboard" ? "py-4 px-3.5" : "p-3.5"
+                } ${
                   isActive 
-                    ? "bg-white/5 border-r-3 border-violet-500 text-white" 
+                    ? "bg-white/5 border-r-3 border-violet-500 text-white" + (item.id === "dashboard" ? " shadow-[0_0_15px_rgba(139,92,246,0.25)]" : "")
                     : "text-white/60 hover:bg-white/5 hover:text-white"
                 }`}
               >
@@ -155,7 +160,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
               <span className="status-dot bg-emerald-500 glow-blue animate-pulse" />
               <span className="text-[10px] text-white/50 uppercase font-bold tracking-wider">Trạng thái Hệ thống</span>
             </div>
-            <p className="text-[10px] text-emerald-400 font-bold font-mono">ONLINE // UPDATE - V3.0 ANH.P</p>
+            <p className="text-[10px] text-emerald-400 font-bold font-mono">ONLINE // UPDATE - V5.0 ANH.P</p>
           </div>
         )}
 
