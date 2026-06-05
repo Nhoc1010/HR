@@ -5,6 +5,9 @@
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Plus Jakarta Sans", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-slate-905: #0b0f19;
+  --color-slate-850: #1e293b;
+  --color-slate-805: #1e293b;
 }
 
 /* Immersive UI design styles */
@@ -239,6 +242,7 @@
 /* Inputs, selects and textarea styling in light theme */
 .light-theme input,
 .light-theme select,
+.light-theme select option,
 .light-theme textarea {
   background-color: #FFFFFF !important;
   border-color: #CBD5E1 !important;
@@ -246,6 +250,12 @@
 }
 .light-theme input::placeholder {
   color: #94A3B8 !important;
+}
+
+/* Ensure dropdown options are properly colored in dark theme as well */
+select option {
+  background-color: #0F172A !important;
+  color: #FFFFFF !important;
 }
 
 /* Borders override */
@@ -274,4 +284,37 @@
 }
 .light-theme table tr:hover {
   background-color: #F8FAFC !important;
+}
+
+/* Subtle error pulse animation for the locked card */
+@keyframes errorPulse {
+  0%, 100% {
+    border-color: rgba(244, 63, 94, 0.35) !important;
+    box-shadow: 0 0 12px rgba(244, 63, 94, 0.15), inset 0 0 4px rgba(244, 63, 94, 0.05) !important;
+  }
+  50% {
+    border-color: rgba(244, 63, 94, 0.95) !important;
+    box-shadow: 0 0 32px rgba(244, 63, 94, 0.6), inset 0 0 12px rgba(244, 63, 94, 0.25) !important;
+  }
+}
+
+.animate-error-pulse {
+  animation: errorPulse 0.38s ease-in-out infinite !important;
+}
+
+/* Subtle horizontal vibration/shake animation for the validation failure */
+@keyframes cardVibrate {
+  0%, 100% {
+    translate: 0px 0px;
+  }
+  12.5%, 37.5%, 62.5%, 87.5% {
+    translate: -5px 0px;
+  }
+  25%, 50%, 75% {
+    translate: 5px 0px;
+  }
+}
+
+.animate-vibrate {
+  animation: cardVibrate 0.45s cubic-bezier(.36,.07,.19,.97) both;
 }

@@ -6,9 +6,9 @@ import {
   Wifi, HelpCircle, FileText, Users, Clock, Calendar, 
   CreditCard, Briefcase, Network, LogOut, Sun, Moon, Database,
   Eye, RefreshCw, Layout, Layers, Box, Cpu, Bell, MessageSquare,
-  CheckCircle, AlertTriangle, Info
+  CheckCircle, AlertTriangle, Info, Download, Calculator as CalculatorIcon, Coins
 } from "lucide-react";
-import { Employee, Attendance, LeaveRequest, HRMTask, Candidate, Contract, Payroll as PayrollType } from "../types";
+import { Employee, Attendance, LeaveRequest, HRMTask, Candidate, Contract, Payroll as PayrollType, Asset } from "../types";
 import Sidebar from "./Sidebar";
 import Dashboard from "./Dashboard";
 import Employees from "./Employees";
@@ -19,8 +19,13 @@ import Recruitment from "./Recruitment";
 import Contracts from "./Contracts";
 import Payroll from "./Payroll";
 import Settings from "./Settings";
+import AssetManagement from "./AssetManagement";
+import Calculator from "./Calculator";
+import HRPayrollEstimator from "./HRPayrollEstimator";
 import { PlexusBackground } from "./BackgroundPlexus";
 import { ThreeDInteractiveImage } from "./ThreeDInteractiveImage";
+import { StickyNotes, StickyNote, encryptData, decryptData, validateAndSafenStickyNotes } from "./StickyNotes";
+import { AiAssistantCorner } from "./AiAssistantCorner";
 
 interface DesktopWorkspaceProps {
   employees: Employee[];
@@ -37,6 +42,8 @@ interface DesktopWorkspaceProps {
   setContracts: any;
   payroll: PayrollType[];
   setPayroll: any;
+  assets: Asset[];
+  setAssets: any;
   depts: string[];
   setDepts: any;
   theme: "light" | "dark";
@@ -75,6 +82,8 @@ export default function DesktopWorkspace({
   setContracts,
   payroll,
   setPayroll,
+  assets,
+  setAssets,
   depts,
   setDepts,
   theme,
@@ -104,6 +113,123 @@ export default function DesktopWorkspace({
     return () => clearInterval(timer);
   }, []);
 
+  // Sticky Notes state (Win 10 fast-note application with Secure Local Storage Vault)
+  const [stickyNotes, setStickyNotes] = useState<StickyNote[]>(() => {
+    try {
+      const saved = localStorage.getItem("hrm_sticky_notes_secure");
+      if (saved) {
+        const decrypted = decryptData(saved);
+        const parsed = JSON.parse(decrypted);
+        return validateAndSafenStickyNotes(parsed);
+      }
+      
+      // Migrate legacy storage safely if present
+      const legacy = localStorage.getItem("hrm_sticky_notes");
+      if (legacy) {
+        const parsed = JSON.parse(legacy);
+        const validated = validateAndSafenStickyNotes(parsed);
+        localStorage.removeItem("hrm_sticky_notes");
+        return validated;
+      }
+
+      return [
+        {
+          id: "note-init-1",
+          text: "📌 GHI CHÚ NHANH CHÓNG BẢO MẬT\n\n- Đây là ứng dụng Sticky Notes giống Windows 10 đã được bảo mật hóa!\n- Mọi ghi chú của bạn đều được mã hóa đầu cuối (XOR Masking) trực tiếp khi lưu vào trình duyệt.\n- Dữ liệu rác hoặc mã độc từ bên ngoài sẽ tự động bị loại bỏ (Anti-XSS & Sandbox).\n- Nhấp nút (+) để tạo ghi chú mới và (...) để chỉnh sửa màu sắc thoải mái!",
+          color: "yellow",
+          x: 320,
+          y: 420,
+          w: 250,
+          h: 220,
+          zIndex: 15
+        }
+      ];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      const validated = validateAndSafenStickyNotes(stickyNotes);
+      const jsonString = JSON.stringify(validated);
+      const encrypted = encryptData(jsonString);
+      localStorage.setItem("hrm_sticky_notes_secure", encrypted);
+    } catch (e) {
+      // Prevent failure impact
+    }
+  }, [stickyNotes]);
+
+  const handleSpawnStickyNote = () => {
+    const newId = `note-${Date.now()}`;
+    const nextZ = Math.max(...(stickyNotes.length > 0 ? stickyNotes.map(n => n.zIndex) : [15])) + 1;
+    const newNote: StickyNote = {
+      id: newId,
+      text: "",
+      color: "yellow",
+      x: 300 + (stickyNotes.length * 40) % 220,
+      y: 180 + (stickyNotes.length * 40) % 220,
+      w: 245,
+      h: 225,
+      zIndex: nextZ
+    };
+    setStickyNotes(prev => [...prev, newNote]);
+    
+    // Add real-time notification
+    const nowStr = new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    setNotifications(prev => [
+      {
+        id: `notif-note-${Date.now()}`,
+        title: "Đã thêm Sticky Note",
+        message: "Phiên ghi chú nhanh mới đã được gắn lên màn hình chính.",
+        time: nowStr,
+        app: "Ghi chú",
+        type: "success",
+        read: false
+      },
+      ...prev
+    ]);
+  };
+
+  const handleDownloadDbSnapshot = () => {
+    try {
+      const snapshot: Record<string, string | null> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith("hrm_") || key === "theme" || key === "accentColor")) {
+          snapshot[key] = localStorage.getItem(key);
+        }
+      }
+      
+      const jsonString = JSON.stringify(snapshot, null, 2);
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(jsonString);
+      const downloadAnchor = document.createElement("a");
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `sqlite_db_snapshot_${timestamp}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      // Dispatch feedback notification
+      const nowStr = new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+      setNotifications(prev => [
+        {
+          id: `notif-snapshot-${Date.now()}`,
+          title: "Database Snapshot",
+          message: "Đã tải xuống bản sao cơ sở dữ liệu SQLite dưới định dạng JSON thành công.",
+          time: nowStr,
+          app: "Hệ thống",
+          type: "success",
+          read: false
+        },
+        ...prev
+      ]);
+    } catch (err) {
+      console.error("Lỗi xuất SQLite snapshot:", err);
+    }
+  };
+
   // Adaptive window layout properties (Move / Stretch / Resize support similar to Win 10)
   const [windowDimensions, setWindowDimensions] = useState<{
     [key: string]: { x: number; y: number; w: number; h: number };
@@ -115,6 +241,9 @@ export default function DesktopWorkspace({
       hrm_suite: { x: 60, y: 55, w: Math.max(780, defaultWidth), h: Math.max(520, defaultHeight) },
       fluent_tasks: { x: 120, y: 105, w: Math.max(720, Math.min(defaultWidth - 20, 920)), h: Math.max(500, Math.min(defaultHeight - 20, 620)) },
       sqlite_console: { x: 180, y: 155, w: Math.max(680, Math.min(defaultWidth - 60, 850)), h: Math.max(460, Math.min(defaultHeight - 60, 560)) },
+      assets_manager: { x: 140, y: 125, w: Math.max(780, defaultWidth), h: Math.max(520, defaultHeight) },
+      calculator: { x: 200, y: 150, w: 840, h: 580 },
+      payroll_estimator: { x: 180, y: 120, w: 850, h: 620 },
     };
   });
 
@@ -227,6 +356,320 @@ export default function DesktopWorkspace({
   const [maximizedWindows, setMaximizedWindows] = useState<string[]>([]);
   const [startMenuOpen, setStartMenuOpen] = useState(false);
 
+  // --- WINDOWS 10 DESKTOP SHORTCUT GRID MECHANISMS ---
+  const [windowSize, setWindowSize] = useState({
+    w: typeof window !== "undefined" ? window.innerWidth : 1200,
+    h: typeof window !== "undefined" ? window.innerHeight : 800,
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        w: window.innerWidth,
+        h: window.innerHeight
+      });
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const [autoArrange, setAutoArrange] = useState<boolean>(() => {
+    const saved = localStorage.getItem("win10_auto_arrange");
+    return saved !== null ? saved === "true" : true; // Default autoArrange to true
+  });
+
+  const [alignToGrid, setAlignToGrid] = useState<boolean>(() => {
+    const saved = localStorage.getItem("win10_align_to_grid");
+    return saved !== null ? saved === "true" : true; // Default alignToGrid to true
+  });
+
+  const [sortBy, setSortBy] = useState<"default" | "name" | "type">(() => {
+    const saved = localStorage.getItem("win10_sort_by");
+    return (saved as any) || "default";
+  });
+
+  const [shortcutOrder, setShortcutOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem("win10_shortcut_order");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return [
+      "hrm_suite",
+      "fluent_tasks",
+      "assets_manager",
+      "sqlite_console",
+      "sticky_notes",
+      "calculator",
+      "payroll_estimator"
+    ];
+  });
+
+  const [customPositions, setCustomPositions] = useState<{ [id: string]: { x: number, y: number } }>(() => {
+    const saved = localStorage.getItem("win10_custom_positions");
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, visible: boolean } | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Constants for desktop grid layout cell size
+  const cellW = 92;
+  const cellH = 104;
+  const offsetX = 24;
+  const offsetY = 40;
+
+  const STATIC_SHORTCUTS = useMemo(() => [
+    {
+      id: "hrm_suite",
+      label: "HRM Manager.exe",
+      icon: Layers,
+      gradient: "from-indigo-700/60 to-purple-800/60",
+      iconColor: "text-white",
+      badge: <div className="absolute -right-1 -bottom-1 bg-emerald-500 w-3 h-3 rounded-full border-2 border-[#0a0b10] animate-pulse" />,
+      action: "hrm_suite"
+    },
+    {
+      id: "fluent_tasks",
+      label: "Fluent Task.exe",
+      icon: Briefcase,
+      gradient: "from-violet-700/60 to-pink-800/60",
+      iconColor: "text-white",
+      action: "fluent_tasks"
+    },
+    {
+      id: "assets_manager",
+      label: "Tài sản.exe",
+      icon: Box,
+      gradient: "from-emerald-600/60 to-teal-800/60",
+      iconColor: "text-white",
+      action: "assets_manager"
+    },
+    {
+      id: "sqlite_console",
+      label: "SQL Console.exe",
+      icon: Terminal,
+      gradient: "from-[#121620] to-[#252f44]",
+      iconColor: "text-[#60a5fa]",
+      action: "sqlite_console"
+    },
+    {
+      id: "sticky_notes",
+      label: "Sticky Note",
+      icon: FileText,
+      gradient: "from-amber-500/50 to-yellow-600/50",
+      iconColor: "text-yellow-300",
+      badge: <div className="absolute -right-1 -top-1 bg-yellow-500 w-2.5 h-2.5 rounded-full border border-[#0a0b10]" />,
+      action: "spawn_sticky"
+    },
+    {
+      id: "calculator",
+      label: "Máy tính.exe",
+      icon: CalculatorIcon,
+      gradient: "from-yellow-500/40 to-amber-700/40",
+      iconColor: "text-amber-300",
+      action: "calculator"
+    },
+    {
+      id: "payroll_estimator",
+      label: "Tính lương.exe",
+      icon: Coins,
+      gradient: "from-emerald-550/40 to-emerald-700/40",
+      iconColor: "text-emerald-300",
+      action: "payroll_estimator"
+    }
+  ], []);
+
+  // Soft Viet / Win names sorted according to options or user layout list
+  const sortedShortcuts = useMemo(() => {
+    const list = [...STATIC_SHORTCUTS];
+    if (sortBy === "name") {
+      list.sort((a, b) => a.label.localeCompare(b.label, "vi"));
+    } else if (sortBy === "type") {
+      list.sort((a, b) => {
+        const getPriority = (id: string) => {
+          if (id === "hrm_suite" || id === "sqlite_console") return 1;
+          if (id === "fluent_tasks" || id === "assets_manager") return 2;
+          return 3;
+        };
+        return getPriority(a.id) - getPriority(b.id);
+      });
+    } else {
+      // Sort using custom drag and drop layout order
+      const orderMap = new Map<string, number>();
+      shortcutOrder.forEach((id, idx) => orderMap.set(id, idx));
+      list.sort((a, b) => {
+        const idxA = orderMap.get(a.id) ?? 99;
+        const idxB = orderMap.get(b.id) ?? 99;
+        return idxA - idxB;
+      });
+    }
+    return list;
+  }, [STATIC_SHORTCUTS, sortBy, shortcutOrder]);
+
+  // Rows and auto placement grids
+  const getGridRowCols = (index: number, height: number) => {
+    const topMargin = 40;
+    const bottomMargin = 85; // buffer for taskbar
+    const usableHeight = Math.max(300, height - topMargin - bottomMargin);
+    const rows = Math.max(1, Math.floor(usableHeight / cellH));
+    const col = Math.floor(index / rows);
+    const row = index % rows;
+    return { col, row };
+  };
+
+  const getShortcutCoords = (id: string, index: number) => {
+    if (autoArrange) {
+      const { col, row } = getGridRowCols(index, windowSize.h);
+      return { x: offsetX + col * cellW, y: offsetY + row * cellH };
+    }
+    if (customPositions[id]) {
+      return customPositions[id];
+    }
+    // Fallback if no custom position recorded yet
+    const { col, row } = getGridRowCols(index, windowSize.h);
+    return { x: offsetX + col * cellW, y: offsetY + row * cellH };
+  };
+
+  const handleDragEndShortcut = (id: string, index: number, offset: { x: number, y: number }) => {
+    // Drop tiny sub-pixel drag offsets to protect pure clicks & double-clicks
+    if (Math.abs(offset.x) < 3 && Math.abs(offset.y) < 3) {
+      return;
+    }
+
+    const initial = getShortcutCoords(id, index);
+    const currentX = initial.x + offset.x;
+    const currentY = initial.y + offset.y;
+
+    if (autoArrange) {
+      const topMargin = 40;
+      const bottomMargin = 85;
+      const usableHeight = Math.max(300, windowSize.h - topMargin - bottomMargin);
+      const rows = Math.max(1, Math.floor(usableHeight / cellH));
+
+      const col = Math.max(0, Math.round((currentX - offsetX) / cellW));
+      const row = Math.max(0, Math.round((currentY - offsetY) / cellH));
+      const targetIndex = Math.min(Math.max(0, col * rows + row), sortedShortcuts.length - 1);
+
+      const fromIndex = shortcutOrder.indexOf(id);
+      if (fromIndex !== -1 && fromIndex !== targetIndex) {
+        const newList = [...shortcutOrder];
+        const [movedItem] = newList.splice(fromIndex, 1);
+        newList.splice(targetIndex, 0, movedItem);
+        setShortcutOrder(newList);
+        localStorage.setItem("win10_shortcut_order", JSON.stringify(newList));
+        
+        // Force sort option back to manual default, ensuring custom sequence immediately renders
+        if (sortBy !== "default") {
+          setSortBy("default");
+          localStorage.setItem("win10_sort_by", "default");
+        }
+      }
+      return;
+    }
+
+    let finalX = currentX;
+    let finalY = currentY;
+
+    if (alignToGrid) {
+      const col = Math.max(0, Math.round((currentX - offsetX) / cellW));
+      const row = Math.max(0, Math.round((currentY - offsetY) / cellH));
+      finalX = offsetX + col * cellW;
+      finalY = offsetY + row * cellH;
+    }
+
+    // Bound values inside window sizing bounds
+    finalX = Math.max(offsetX, Math.min(windowSize.w - cellW, finalX));
+    finalY = Math.max(offsetY, Math.min(windowSize.h - cellH - 75, finalY));
+
+    let nextPositions = { ...customPositions };
+
+    if (alignToGrid) {
+      // Find occupant at this specific snapped slot
+      const occupantIndex = sortedShortcuts.findIndex((item) => {
+        if (item.id === id) return false;
+        const currentCoord = getShortcutCoords(item.id, sortedShortcuts.indexOf(item));
+        return currentCoord.x === finalX && currentCoord.y === finalY;
+      });
+
+      if (occupantIndex !== -1) {
+        const occupant = sortedShortcuts[occupantIndex];
+        // Swap positions! Occupant goes to dragged icon's original slot
+        nextPositions[occupant.id] = { x: initial.x, y: initial.y };
+      }
+    }
+
+    nextPositions[id] = { x: finalX, y: finalY };
+    setCustomPositions(nextPositions);
+    localStorage.setItem("win10_custom_positions", JSON.stringify(nextPositions));
+
+    if (sortBy !== "default") {
+      setSortBy("default");
+      localStorage.setItem("win10_sort_by", "default");
+    }
+  };
+
+  const handleToggleAutoArrange = () => {
+    const val = !autoArrange;
+    setAutoArrange(val);
+    localStorage.setItem("win10_auto_arrange", String(val));
+    setContextMenu(null);
+  };
+
+  const handleToggleAlignToGrid = () => {
+    const val = !alignToGrid;
+    setAlignToGrid(val);
+    localStorage.setItem("win10_align_to_grid", String(val));
+    setContextMenu(null);
+  };
+
+  const handleSetSortBy = (mode: "default" | "name" | "type") => {
+    setSortBy(mode);
+    localStorage.setItem("win10_sort_by", mode);
+    setContextMenu(null);
+  };
+
+  const handleRefreshDesktop = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 600);
+    setContextMenu(null);
+  };
+
+  const handleDesktopContextMenu = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest(".win10-window") || 
+      target.closest(".win10-btn-exclude") || 
+      target.closest("input") || 
+      target.closest("textarea") || 
+      target.closest("button:not(.desktop-bgless)") || 
+      target.closest(".start-menu") ||
+      target.closest(".ai-assistant-bubble") 
+    ) {
+      return;
+    }
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      visible: true
+    });
+  };
+
+  useEffect(() => {
+    const closeMenu = () => {
+      setContextMenu(null);
+    };
+    window.addEventListener("click", closeMenu);
+    return () => {
+      window.removeEventListener("click", closeMenu);
+    };
+  }, []);
+
   // Core sub-tabs specifically registered for the multi-functional window
   const [hrmSuiteTab, setHrmSuiteTab] = useState<string>("dashboard");
 
@@ -278,6 +721,22 @@ export default function DesktopWorkspace({
       read: true
     }
   ]);
+
+  const handleAddNotification = (title: string, message: string, type: "success" | "warn" | "info") => {
+    const nowStr = new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    setNotifications(prev => [
+      {
+        id: `ai-notif-${Date.now()}`,
+        title,
+        message,
+        time: nowStr,
+        app: "Trợ lý AI",
+        type,
+        read: false
+      },
+      ...prev
+    ]);
+  };
 
   const lastEmployeesLength = useRef(employees.length);
   const lastAttendanceLength = useRef(attendance.length);
@@ -623,6 +1082,8 @@ export default function DesktopWorkspace({
             setPayroll={setPayroll}
           />
         );
+      case "assets":
+        return <AssetManagement employees={employees} assets={assets} setAssets={setAssets} />;
       case "settings":
         return (
           <Settings 
@@ -659,7 +1120,10 @@ export default function DesktopWorkspace({
   };
 
   return (
-    <div className="w-full h-screen relative overflow-hidden select-none bg-[#0a0b10] text-[#f8fafc] font-sans">
+    <div 
+      onContextMenu={handleDesktopContextMenu}
+      className="w-full h-screen relative overflow-hidden select-none bg-[#0a0b10] text-[#f8fafc] font-sans"
+    >
       {/* Plexus Constellation Line Network */}
       <PlexusBackground />
 
@@ -667,54 +1131,78 @@ export default function DesktopWorkspace({
       <div className="absolute top-[20%] right-[30%] w-[350px] h-[350px] bg-purple-600/5 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[20%] left-[10%] w-[350px] h-[350px] bg-blue-600/5 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* Left side: Workspace Desktop shortcuts */}
-      <div className="absolute top-10 left-6 z-10 flex flex-col gap-6">
-        {/* Shortcut HRM Pro.exe */}
-        <button 
-          onDoubleClick={() => handleWindowOpen("hrm_suite")}
-          onClick={() => handleWindowOpen("hrm_suite")}
-          className="flex flex-col items-center justify-center p-3 w-20 rounded-xl hover:bg-white/5 active:scale-95 transition-all text-center group cursor-pointer"
-        >
-          <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-700/60 to-purple-800/60 p-2.5 flex items-center justify-center border border-white/10 shadow-lg group-hover:shadow-indigo-500/20 group-hover:scale-105 transition-all">
-            <Layers className="w-6 h-6 text-white" />
-            <div className="absolute -right-1 -bottom-1 bg-emerald-500 w-3 h-3 rounded-full border-2 border-[#0a0b10] animate-pulse" />
-          </div>
-          <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 mt-2 truncate max-w-[76px] drop-shadow-md">
-            HRM Manager.exe
-          </span>
-        </button>
-
-        {/* Shortcut Fluent Task.exe */}
-        <button 
-          onDoubleClick={() => handleWindowOpen("fluent_tasks")}
-          onClick={() => handleWindowOpen("fluent_tasks")}
-          className="flex flex-col items-center justify-center p-3 w-20 rounded-xl hover:bg-white/5 active:scale-95 transition-all text-center group cursor-pointer"
-        >
-          <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-700/60 to-pink-800/60 p-2.5 flex items-center justify-center border border-white/10 shadow-lg group-hover:shadow-pink-500/20 group-hover:scale-105 transition-all">
-            <Briefcase className="w-6 h-6 text-white" />
-          </div>
-          <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 mt-2 truncate max-w-[76px] drop-shadow-md">
-            Fluent Task.exe
-          </span>
-        </button>
-
-        {/* Shortcut SQLite Console.exe */}
-        <button 
-          onDoubleClick={() => handleWindowOpen("sqlite_console")}
-          onClick={() => handleWindowOpen("sqlite_console")}
-          className="flex flex-col items-center justify-center p-3 w-20 rounded-xl hover:bg-white/5 active:scale-95 transition-all text-center group cursor-pointer"
-        >
-          <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-[#121620] to-[#252f44] p-2.5 flex items-center justify-center border border-indigo-500/30 shadow-lg group-hover:shadow-indigo-500/20 group-hover:scale-105 transition-all">
-            <Terminal className="w-6 h-6 text-[#60a5fa]" />
-          </div>
-          <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 mt-2 truncate max-w-[76px] drop-shadow-md">
-            SQL Console.exe
-          </span>
-        </button>
+      {/* Dynamic Workspace Desktop shortcuts with Grid and drag & drop */}
+      <div className="absolute inset-0 z-10 pointer-events-none" id="desktop-bg-container">
+        {sortedShortcuts.map((item, index) => {
+          const itemCoords = getShortcutCoords(item.id, index);
+          
+          return (
+            <motion.div
+              key={item.id}
+              drag={true}
+              dragMomentum={false}
+              dragElastic={0.05}
+              onDragEnd={(e, info) => handleDragEndShortcut(item.id, index, info.offset)}
+              animate={isRefreshing ? { 
+                scale: [1, 0, 1.05, 1], 
+                opacity: [1, 0, 1, 1],
+                x: itemCoords.x,
+                y: itemCoords.y,
+                transition: { duration: 0.5, delay: index * 0.04 } 
+              } : {
+                x: itemCoords.x,
+                y: itemCoords.y,
+                scale: 1,
+                opacity: 1
+              }}
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: `${cellW}px`,
+                height: `${cellH}px`,
+              }}
+              className="pointer-events-auto flex flex-col items-center justify-center select-none"
+            >
+              <button 
+                onDoubleClick={() => {
+                  if (item.action === "spawn_sticky") {
+                    handleSpawnStickyNote();
+                  } else {
+                    handleWindowOpen(item.action as any);
+                  }
+                }}
+                onClick={() => {
+                  if (window.innerWidth < 768) {
+                    if (item.action === "spawn_sticky") {
+                      handleSpawnStickyNote();
+                    } else {
+                      handleWindowOpen(item.action as any);
+                    }
+                  }
+                }}
+                className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-white/5 active:bg-white/10 transition-all text-center group cursor-pointer desktop-bgless"
+                id={`desktop-shortcut-${item.id}`}
+              >
+                <div className={`relative w-11 h-11 rounded-2xl bg-gradient-to-br ${item.gradient} p-2 flex items-center justify-center border border-white/10 shadow-lg group-hover:shadow-indigo-500/10 group-hover:scale-105 transition-all`}>
+                  <item.icon className={`w-5.5 h-5.5 ${item.iconColor}`} />
+                  {item.badge}
+                </div>
+                <span className="text-[10px] sm:text-[10.5px] font-bold text-slate-200 mt-1.5 truncate w-[84px] drop-shadow-md leading-tight text-center">
+                  {item.label}
+                </span>
+              </button>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Top Right Widget: SQLite Local DB Engine status */}
-      <div className="absolute top-6 right-6 z-10 w-80 bg-slate-900/80 border border-white/10 backdrop-blur-2xl rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col gap-3">
+      <motion.div 
+        drag
+        dragMomentum={false}
+        className="absolute top-6 right-6 z-10 w-80 bg-slate-900/80 border border-white/10 backdrop-blur-2xl rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col gap-3 cursor-grab active:cursor-grabbing select-none"
+      >
         <div className="flex items-center justify-between pb-2 border-b border-white/5">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
@@ -761,15 +1249,26 @@ export default function DesktopWorkspace({
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* 3D Holographic Portrait / Tech Image Widget */}
-      <div className="absolute top-[342px] right-6 z-10 pb-6">
+      <motion.div 
+        drag
+        dragMomentum={false}
+        className="absolute top-[342px] right-6 z-10 pb-6 cursor-grab active:cursor-grabbing select-none"
+      >
         <ThreeDInteractiveImage 
           currentAdmin={currentAdmin} 
           accentColorHex={accentColorHex} 
         />
-      </div>
+      </motion.div>
+
+      {/* Sticky Notes (Win 10 style floating cards) */}
+      <StickyNotes 
+        notes={stickyNotes}
+        onChangeNotes={setStickyNotes}
+        accentColorHex={accentColorHex}
+      />
 
       {/* WINDOW RENDERING ZONE */}
       <div className="absolute inset-0 pt-6 pb-20 px-4 md:px-10 flex items-center justify-center pointer-events-none">
@@ -863,7 +1362,7 @@ export default function DesktopWorkspace({
                   onDoubleClick={() => toggleMaximize(windowId)}
                   onMouseDown={(e) => startDrag(windowId, e, false)}
                 >
-                  <div className="flex items-center gap-3">
+                   <div className="flex items-center gap-3">
                     {windowId === "hrm_suite" ? (
                       <div className="p-0.5 px-2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/15 flex items-center gap-1.5 font-sans">
                         <Layers className="w-3 h-3 animate-none" />
@@ -873,6 +1372,21 @@ export default function DesktopWorkspace({
                       <div className="p-0.5 px-2 rounded bg-pink-500/10 text-pink-400 border border-pink-500/15 flex items-center gap-1.5 font-sans">
                         <Briefcase className="w-3 h-3" />
                         <span className="text-[9px] font-extrabold uppercase tracking-wide">Tasks</span>
+                      </div>
+                    ) : windowId === "assets_manager" ? (
+                      <div className="p-0.5 px-2 rounded bg-emerald-500/10 text-emerald-450 border border-emerald-500/15 flex items-center gap-1.5 font-sans">
+                        <Box className="w-3 h-3 text-emerald-400" />
+                        <span className="text-[9px] font-extrabold uppercase tracking-wide">Assets</span>
+                      </div>
+                    ) : windowId === "calculator" ? (
+                      <div className="p-0.5 px-2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/15 flex items-center gap-1.5 font-sans">
+                        <CalculatorIcon className="w-3 h-3 text-amber-400" />
+                        <span className="text-[9px] font-extrabold uppercase tracking-wide">Calculator</span>
+                      </div>
+                    ) : windowId === "payroll_estimator" ? (
+                      <div className="p-0.5 px-2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/15 flex items-center gap-1.5 font-sans">
+                        <Coins className="w-3 h-3 text-emerald-400" />
+                        <span className="text-[9px] font-extrabold uppercase tracking-wide">Payroll</span>
                       </div>
                     ) : (
                       <div className="p-0.5 px-2 rounded bg-[#3b82f6]/10 text-[#3b82f6] border border-blue-500/15 flex items-center gap-1.5 font-mono">
@@ -886,7 +1400,13 @@ export default function DesktopWorkspace({
                         ? `Fluent HRM Suite — context [${currentAdmin.name}]`
                         : windowId === "fluent_tasks"
                           ? "Tasks Panel"
-                          : "SQLite Local Connection"
+                          : windowId === "assets_manager"
+                            ? "Quản lý Tài sản & Thiết bị Công nghệ"
+                            : windowId === "calculator"
+                              ? "Máy tính đa năng"
+                              : windowId === "payroll_estimator"
+                                ? "Công cụ Tính lương, Bảo hiểm & Thuế TNCN"
+                                : "SQLite Local Connection"
                       }
                     </span>
                   </div>
@@ -963,6 +1483,7 @@ export default function DesktopWorkspace({
                           { id: "leaves", label: "Nghỉ phép", icon: Calendar },
                           { id: "contracts", label: "Hợp đồng", icon: FileText },
                           { id: "payroll", label: "Tính lương", icon: CreditCard },
+                          { id: "assets", label: "Tài sản & Thiết bị", icon: Box },
                           { id: "recruitment", label: "Tuyển dụng", icon: Network },
                           { id: "settings", label: "Thiết lập hệ thống", icon: SettingsIcon }
                         ].map(m => {
@@ -970,7 +1491,13 @@ export default function DesktopWorkspace({
                           return (
                             <button
                               key={m.id}
-                              onClick={() => setHrmSuiteTab(m.id)}
+                              onClick={() => {
+                                if (m.id === "assets") {
+                                  handleWindowOpen("assets_manager");
+                                } else {
+                                  setHrmSuiteTab(m.id);
+                                }
+                              }}
                               className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-left cursor-pointer text-xs font-semibold tracking-tight transition-all
                                 ${isSuiteActive
                                   ? theme === "light"
@@ -1000,6 +1527,24 @@ export default function DesktopWorkspace({
                     </div>
                   )}
 
+                  {windowId === "assets_manager" && (
+                    <div className="h-full">
+                      <AssetManagement employees={employees} assets={assets} setAssets={setAssets} />
+                    </div>
+                  )}
+
+                  {windowId === "calculator" && (
+                    <div className="h-full overflow-hidden">
+                      <Calculator theme={theme} employees={employees} />
+                    </div>
+                  )}
+
+                  {windowId === "payroll_estimator" && (
+                    <div className="h-full">
+                      <HRPayrollEstimator theme={theme} employees={employees} />
+                    </div>
+                  )}
+
                   {windowId === "sqlite_console" && (
                     <div className="flex flex-col md:flex-row gap-6 h-full">
                       {/* System Accent Color picker & general SQLite offline config pane */}
@@ -1009,24 +1554,34 @@ export default function DesktopWorkspace({
                         <div className="flex flex-col gap-1.5">
                           <button 
                             onClick={() => setActiveSqlConfigTab("color")}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left ${activeSqlConfigTab === "color" ? "bg-white/10 text-white" : "text-slate-400 hover:text-slate-300"}`}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${activeSqlConfigTab === "color" ? "bg-white/10 text-white" : "text-slate-400 hover:text-slate-300"}`}
                           >
                             <Box className="w-3.5 h-3.5 text-[#a855f7]" />
                             <span>Giao diện & Màu sắc</span>
                           </button>
                           <button 
                             onClick={() => setActiveSqlConfigTab("sql")}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left ${activeSqlConfigTab === "sql" ? "bg-white/10 text-white" : "text-slate-400 hover:text-slate-300"}`}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${activeSqlConfigTab === "sql" ? "bg-white/10 text-white" : "text-slate-400 hover:text-slate-300"}`}
                           >
                             <Terminal className="w-3.5 h-3.5 text-[#3b82f6]" />
                             <span>Truy vấn-SQL Console</span>
                           </button>
                           <button 
                             onClick={() => setActiveSqlConfigTab("lock")}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left ${activeSqlConfigTab === "lock" ? "bg-white/10 text-white" : "text-slate-400 hover:text-slate-300"}`}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${activeSqlConfigTab === "lock" ? "bg-white/10 text-white" : "text-slate-400 hover:text-slate-300"}`}
                           >
                             <Shield className="w-3.5 h-3.5 text-[#10b981]" />
                             <span>Mã hóa & Bảo mật</span>
+                          </button>
+                          
+                          <div className="h-px bg-white/5 my-1" />
+
+                          <button 
+                            onClick={handleDownloadDbSnapshot}
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-350 transition-all text-left cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Export DB Snapshot</span>
                           </button>
                           <button 
                             onClick={() => {
@@ -1035,10 +1590,14 @@ export default function DesktopWorkspace({
                                 localStorage.removeItem("hrm_tasks");
                                 localStorage.removeItem("hrm_attendance");
                                 localStorage.removeItem("hrm_leave_requests");
+                                localStorage.removeItem("hrm_candidates");
+                                localStorage.removeItem("hrm_contracts");
+                                localStorage.removeItem("hrm_payroll");
+                                localStorage.removeItem("hrm_sticky_notes_secure");
                                 window.location.reload();
                               }
                             }}
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-450 hover:bg-rose-500/10 hover:text-rose-400 transition-all text-left"
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-450 hover:bg-rose-500/10 hover:text-rose-400 transition-all text-left cursor-pointer"
                           >
                             <RefreshCw className="w-3.5 h-3.5 text-rose-500" />
                             <span>Khôi phục SQLite</span>
@@ -1288,11 +1847,42 @@ export default function DesktopWorkspace({
                   <span>Bảng Kanban công việc KPI</span>
                 </button>
                 <button
+                  onClick={() => handleWindowOpen("assets_manager")}
+                  className="flex items-center gap-2.5 p-2 rounded-xl text-left hover:bg-white/5 text-slate-300 font-semibold text-xs active:scale-95 transition-all cursor-pointer"
+                >
+                  <Box className="w-4 h-4 text-emerald-400" />
+                  <span>Quản lý Tài sản & Thiết bị</span>
+                </button>
+                <button
                   onClick={() => handleWindowOpen("sqlite_console")}
                   className="flex items-center gap-2.5 p-2 rounded-xl text-left hover:bg-white/5 text-slate-300 font-semibold text-xs active:scale-95 transition-all cursor-pointer"
                 >
                   <Terminal className="w-4 h-4 text-blue-400" />
                   <span>SQLite Sandbox Console</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setStartMenuOpen(false);
+                    handleSpawnStickyNote();
+                  }}
+                  className="flex items-center gap-2.5 p-2 rounded-xl text-left hover:bg-white/5 text-slate-300 font-semibold text-xs active:scale-95 transition-all cursor-pointer"
+                >
+                  <FileText className="w-4 h-4 text-yellow-400" />
+                  <span>Ứng dụng Sticky Notes (Ghi chú)</span>
+                </button>
+                <button
+                  onClick={() => handleWindowOpen("calculator")}
+                  className="flex items-center gap-2.5 p-2 rounded-xl text-left hover:bg-white/5 text-slate-300 font-semibold text-xs active:scale-95 transition-all cursor-pointer"
+                >
+                  <CalculatorIcon className="w-4 h-4 text-amber-400" />
+                  <span>Máy tính đa năng (Calculator)</span>
+                </button>
+                <button
+                  onClick={() => handleWindowOpen("payroll_estimator")}
+                  className="flex items-center gap-2.5 p-2 rounded-xl text-left hover:bg-white/5 text-slate-300 font-semibold text-xs active:scale-95 transition-all cursor-pointer"
+                >
+                  <Coins className="w-4 h-4 text-emerald-400" />
+                  <span>Công cụ tính lương & thuế (PIT)</span>
                 </button>
               </div>
 
@@ -1561,7 +2151,10 @@ export default function DesktopWorkspace({
             {[
               { id: "hrm_suite", label: "Core HRM", icon: Layers, accent: "border-b-purple-500", highlightColor: "bg-purple-500" },
               { id: "fluent_tasks", label: "Fluent Task", icon: Briefcase, accent: "border-b-pink-500", highlightColor: "bg-pink-500" },
-              { id: "sqlite_console", label: "SQL Console", icon: Terminal, accent: "border-b-blue-500", highlightColor: "bg-blue-500" }
+              { id: "assets_manager", label: "Tài sản", icon: Box, accent: "border-b-emerald-500", highlightColor: "bg-emerald-500" },
+              { id: "sqlite_console", label: "SQL Console", icon: Terminal, accent: "border-b-blue-500", highlightColor: "bg-blue-500" },
+              { id: "calculator", label: "Máy tính", icon: CalculatorIcon, accent: "border-b-amber-500", highlightColor: "bg-amber-500" },
+              { id: "payroll_estimator", label: "Tính lương & Thuế", icon: Coins, accent: "border-b-emerald-500", highlightColor: "bg-emerald-500" }
             ].map(taskPill => {
               const isOpen = openWindows.includes(taskPill.id);
               const isMinimized = minimizedWindows.includes(taskPill.id);
@@ -1643,6 +2236,155 @@ export default function DesktopWorkspace({
           </button>
         </div>
       </div>
+
+      <AiAssistantCorner
+        theme={theme}
+        accentColor={accentColor}
+        onAddNotification={handleAddNotification}
+      />
+
+      {/* WINDOWS 10 STYLED CONTEXT MENU */}
+      <AnimatePresence>
+        {contextMenu && contextMenu.visible && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.12 }}
+            style={{
+              position: "absolute",
+              left: `${Math.min(contextMenu.x, windowSize.w - 200)}px`,
+              top: `${Math.min(contextMenu.y, windowSize.h - 320)}px`,
+              zIndex: 9999,
+            }}
+            className={`w-48 py-1.5 rounded-lg border shadow-xl backdrop-blur-xl ${
+              theme === "light" 
+                ? "bg-white/95 border-slate-200/80 text-slate-800 shadow-slate-200/50" 
+                : "bg-slate-900/90 border-white/10 text-slate-200 shadow-black/60"
+            }`}
+          >
+            {/* View Submenu Option - Render directly for simplicity & extreme reliability */}
+            <div className="px-1.5 py-0.5">
+              <span className={`text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 block ${
+                theme === "light" ? "text-slate-400" : "text-slate-500"
+              }`}>Chế độ xem</span>
+              
+              <button
+                onClick={handleToggleAutoArrange}
+                className={`w-full text-left px-2.5 py-1.5 text-xs rounded-md flex items-center justify-between cursor-pointer transition-colors ${
+                  theme === "light" ? "hover:bg-slate-100" : "hover:bg-white/5"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 flex items-center justify-center">
+                    {autoArrange && <Check className="w-3.5 h-3.5 text-emerald-500" />}
+                  </span>
+                  <span>Tự động sắp xếp</span>
+                </span>
+                <span className="text-[9px] opacity-40">Auto</span>
+              </button>
+
+              <button
+                onClick={handleToggleAlignToGrid}
+                className={`w-full text-left px-2.5 py-1.5 text-xs rounded-md flex items-center justify-between cursor-pointer transition-colors ${
+                  theme === "light" ? "hover:bg-slate-100" : "hover:bg-white/5"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 flex items-center justify-center">
+                    {alignToGrid && <Check className="w-3.5 h-3.5 text-indigo-500" />}
+                  </span>
+                  <span>Căn đều vào lưới</span>
+                </span>
+                <span className="text-[9px] opacity-40">Grid</span>
+              </button>
+            </div>
+
+            <div className={`my-1 border-t ${theme === "light" ? "border-slate-100" : "border-white/5"}`} />
+
+            {/* Sort Submenu Option */}
+            <div className="px-1.5 py-0.5">
+              <span className={`text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 block ${
+                theme === "light" ? "text-slate-400" : "text-slate-500"
+              }`}>Sắp xếp theo</span>
+
+              <button
+                onClick={() => handleSetSortBy("default")}
+                className={`w-full text-left px-2.5 py-1.5 text-xs rounded-md flex items-center gap-2 cursor-pointer transition-colors ${
+                  theme === "light" ? "hover:bg-slate-100" : "hover:bg-white/5"
+                }`}
+              >
+                <span className="w-3.5 flex items-center justify-center">
+                  {sortBy === "default" && <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+                </span>
+                <span>Mặc định (Loại)</span>
+              </button>
+
+              <button
+                onClick={() => handleSetSortBy("name")}
+                className={`w-full text-left px-2.5 py-1.5 text-xs rounded-md flex items-center gap-2 cursor-pointer transition-colors ${
+                  theme === "light" ? "hover:bg-slate-100" : "hover:bg-white/5"
+                }`}
+              >
+                <span className="w-3.5 flex items-center justify-center">
+                  {sortBy === "name" && <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+                </span>
+                <span>Tên (A-Z)</span>
+              </button>
+            </div>
+
+            <div className={`my-1 border-t ${theme === "light" ? "border-slate-100" : "border-white/5"}`} />
+
+            {/* General OS style system interactions */}
+            <div className="px-1.5 py-0.5">
+              <button
+                onClick={handleRefreshDesktop}
+                className={`w-full text-left px-2.5 py-1.5 text-xs rounded-md flex items-center gap-2 cursor-pointer transition-colors ${
+                  theme === "light" ? "hover:bg-slate-100" : "hover:bg-white/5"
+                }`}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-sky-500 ${isRefreshing ? "animate-spin" : ""}`} />
+                <span>Làm mới desktop</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleSpawnStickyNote();
+                  setContextMenu(null);
+                }}
+                className={`w-full text-left px-2.5 py-1.5 text-xs rounded-md flex items-center gap-2 cursor-pointer transition-colors ${
+                  theme === "light" ? "hover:bg-slate-100" : "hover:bg-white/5"
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5 text-amber-500" />
+                <span>Tạo Sticky Note</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setTheme(theme === "light" ? "dark" : "light");
+                  setContextMenu(null);
+                }}
+                className={`w-full text-left px-2.5 py-1.5 text-xs rounded-md flex items-center gap-2 cursor-pointer transition-colors ${
+                  theme === "light" ? "hover:bg-slate-100" : "hover:bg-white/5"
+                }`}
+              >
+                {theme === "light" ? (
+                  <>
+                    <Moon className="w-3.5 h-3.5 text-[#a855f7]" />
+                    <span>Chuyển sang Tối</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun className="w-3.5 h-3.5 text-[#f59e0b]" />
+                    <span>Chuyển sang Sáng</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

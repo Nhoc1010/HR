@@ -131,11 +131,24 @@ const documentLimiter = createRateLimiter(15, 60000); // 15 gen/min
 // Initialize Gemini API with lazy initialization for enhanced security
 let aiInstance: GoogleGenAI | null = null;
 
-function getAI(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY;
+function getAI(customApiKey?: string): GoogleGenAI {
+  const apiKey = customApiKey || process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("Không tìm thấy cấu hình GEMINI_API_KEY trong biến môi trường. Vui lòng thiết lập khóa API trong phần cài đặt.");
+    throw new Error("Không tìm thấy cấu hình GEMINI_API_KEY. Vui lòng thiết lập khóa API để kích hoạt AI.");
   }
+  
+  if (customApiKey) {
+    // Return a new sandbox-clean instance for client dynamic credentials to avoid cross-contamination
+    return new GoogleGenAI({
+      apiKey: customApiKey,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
+      },
+    });
+  }
+
   if (!aiInstance) {
     aiInstance = new GoogleGenAI({
       apiKey: apiKey,
@@ -153,7 +166,11 @@ function getAI(): GoogleGenAI {
 // 1. General HRM assistant chat
 app.post("/api/chat", chatLimiter, async (req, res) => {
   try {
-    const ai = getAI();
+    const customKey = req.headers["x-gemini-key"] as string;
+    if (!customKey || customKey.trim() === "") {
+      return res.status(400).json({ error: "Yêu cầu khóa API. Vui lòng nhập chính xác Gemini API Key trong góc hội thoại để kích hoạt Trợ lý AI." });
+    }
+    const ai = getAI(customKey);
     const { message, chatHistory } = req.body;
     
     // Format history for the model
@@ -191,7 +208,8 @@ Hãy trả lời ngắn gọn, súc tích, chuyên nghiệp bằng tiếng Việ
 // 2. Draft labor contract
 app.post("/api/draft-contract", documentLimiter, async (req, res) => {
   try {
-    const ai = getAI();
+    const customKey = req.headers["x-gemini-key"] as string;
+    const ai = getAI(customKey);
     const { employee, contract } = req.body;
     const prompt = `Hãy soạn thảo một HỢP ĐỒNG LAO ĐỘNG chi tiết, chuyên nghiệp và đúng luật lao động Việt Nam dựa trên các thông tin sau:
 - Tên nhân viên: ${employee.name} (${employee.gender === "Nam" ? "Ông" : "Bà"})
@@ -229,7 +247,8 @@ Yêu cầu hợp đồng:
 // 3. Evaluate CV & Candidate
 app.post("/api/analyze-candidate", documentLimiter, async (req, res) => {
   try {
-    const ai = getAI();
+    const customKey = req.headers["x-gemini-key"] as string;
+    const ai = getAI(customKey);
     const { candidate } = req.body;
     const prompt = `Hãy đóng vai trò là một chuyên gia tuyển dụng cao cấp. Phân tích và đưa ra đánh giá, phê duyệt cho ứng viên sau:
 - Tên ứng viên: ${candidate.name}

@@ -17,7 +17,8 @@ import {
   CreditCard,
   LogOut,
   Building,
-  Settings
+  Settings,
+  Boxes
 } from "lucide-react";
 
 import { Employee } from "../types";
@@ -55,6 +56,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
     { id: "contracts", label: "Hợp đồng", icon: FileText },
     { id: "payroll", label: "Tính lương", icon: CreditCard },
     { id: "tasks", label: "Công việc", icon: Briefcase },
+    { id: "assets", label: "Quản lý Tài sản", icon: Boxes },
     { id: "recruitment", label: "Funnel Flow", icon: Network },
     { id: "settings", label: "Cài đặt", icon: Settings },
   ];

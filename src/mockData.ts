@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Employee, Attendance, LeaveRequest, HRMTask, Candidate, Contract, Payroll } from "./types";
+import { Employee, Attendance, LeaveRequest, HRMTask, Candidate, Contract, Payroll, Asset } from "./types";
 
 export const initialEmployees: Employee[] = [
   {
@@ -539,4 +539,116 @@ export const initialPayroll: Payroll[] = [
     status: "Đang tính toán"
   }
 ];
+
+export const initialAssets: Asset[] = [
+  {
+    id: "ast01",
+    code: "AST-MBP-01",
+    name: "MacBook Pro 14\" M3 Max",
+    type: "Laptop/PC",
+    status: "Đang cấp phát",
+    assignedTo: "emp01",
+    assignedName: "Nguyễn Văn Minh",
+    specs: "Apple M3 Max Chip, 36GB Unified RAM, 1TB SSD, 14-inch Liquid Retina XDR",
+    value: 54990000,
+    purchaseDate: "2024-02-15",
+    warrantyMonths: 12,
+    location: "Bàn kỹ thuật số 1"
+  },
+  {
+    id: "ast02",
+    code: "AST-DEL-02",
+    name: "Dell XPS 15 9530",
+    type: "Laptop/PC",
+    status: "Đang cấp phát",
+    assignedTo: "emp06",
+    assignedName: "Hoàng Thị Mỹ Linh",
+    specs: "Intel Core i7-13700H, 32GB DDR5 RAM, 1TB NVMe SSD, Nvidia RTX 4050 6GB",
+    value: 46500000,
+    purchaseDate: "2023-11-20",
+    warrantyMonths: 24,
+    location: "Phòng kỹ thuật - Bàn 04"
+  },
+  {
+    id: "ast03",
+    code: "AST-MON-03",
+    name: "Màn hình LG UltraFine 27UP850N 4K IPS",
+    type: "Màn hình",
+    status: "Đang cấp phát",
+    assignedTo: "emp01",
+    assignedName: "Nguyễn Văn Minh",
+    specs: "27-inch UHD 4K (3840x2160) IPS, USB-C 96W Power Delivery, DCI-P3 95%",
+    value: 9200000,
+    purchaseDate: "2024-02-18",
+    warrantyMonths: 24,
+    location: "Bàn kỹ thuật số 1"
+  },
+  {
+    id: "ast04",
+    code: "AST-THK-04",
+    name: "Lenovo ThinkPad T14 Gen 4",
+    type: "Laptop/PC",
+    status: "Đang cấp phát",
+    assignedTo: "emp05",
+    assignedName: "Vũ Đức Thịnh",
+    specs: "AMD Ryzen 7 PRO 7840U, 16GB LPDDR5x, 512GB PCIe Gen4 SSD, 14\" WUXGA IPS",
+    value: 29800000,
+    purchaseDate: "2024-01-10",
+    warrantyMonths: 36,
+    location: "Phòng Tài chính - Bàn 01"
+  },
+  {
+    id: "ast05",
+    code: "AST-MBA-05",
+    name: "MacBook Air 13\" M2",
+    type: "Laptop/PC",
+    status: "Đang cấp phát",
+    assignedTo: "emp04",
+    assignedName: "Phạm Thị Lan Anh",
+    specs: "Apple M2 8-Core CPU, 16GB Unified RAM, 512GB SSD, Midnight Blue",
+    value: 30990000,
+    purchaseDate: "2023-06-05",
+    warrantyMonths: 12,
+    location: "Phòng Hành chính - Nhân sự"
+  },
+  {
+    id: "ast06",
+    code: "AST-NET-06",
+    name: "Router Cisco ISR 4321 WAN",
+    type: "Thiết bị mạng",
+    status: "Sẵn sàng",
+    specs: "Cisco Integrated Services Router ISR4321/K9, 50Mbps-100Mbps system throughput",
+    value: 18500000,
+    purchaseDate: "2023-08-01",
+    warrantyMonths: 36,
+    location: "Tủ Rack Server trung tâm"
+  },
+  {
+    id: "ast07",
+    code: "AST-SRV-07",
+    name: "Dell PowerEdge T350 Server Tower",
+    type: "Laptop/PC",
+    status: "Đang bảo trì",
+    specs: "Intel Xeon E-2314, 32GB DDR4 ECC, 2x 2TB SATA Enterprise HDD RAID-1",
+    value: 48900000,
+    purchaseDate: "2022-10-15",
+    warrantyMonths: 36,
+    location: "Tủ Rack Server trung tâm"
+  },
+  {
+    id: "ast08",
+    code: "AST-IPD-08",
+    name: "iPad Air 5 M1 Wifi 256GB",
+    type: "Thiết bị di động",
+    status: "Đang cấp phát",
+    assignedTo: "emp02",
+    assignedName: "Trần Thị Thu Hà",
+    specs: "Apple M1 chip, 8GB RAM, 256GB Flash, 10.9-inch Liquid Retina Display",
+    value: 19500000,
+    purchaseDate: "2023-12-10",
+    warrantyMonths: 12,
+    location: "Phòng Marketing"
+  }
+];
+
 

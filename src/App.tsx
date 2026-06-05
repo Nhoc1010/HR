@@ -19,6 +19,7 @@ import Login from "./components/Login";
 import Departments from "./components/Departments";
 import Settings from "./components/Settings";
 import DesktopWorkspace from "./components/DesktopWorkspace";
+import AssetManagement from "./components/AssetManagement";
 import { 
   initialEmployees, 
   initialAttendance, 
@@ -26,9 +27,10 @@ import {
   initialTasks, 
   initialCandidates,
   initialContracts,
-  initialPayroll
+  initialPayroll,
+  initialAssets
 } from "./mockData";
-import { Employee, Attendance, LeaveRequest, HRMTask, Candidate, Contract, Payroll as PayrollType } from "./types";
+import { Employee, Attendance, LeaveRequest, HRMTask, Candidate, Contract, Payroll as PayrollType, Asset } from "./types";
 
 const getInitials = (name: string): string => {
   if (!name) return "AD";
@@ -158,6 +160,9 @@ export default function App() {
   );
   const [payroll, setPayroll] = useState<PayrollType[]>(() => 
     getLocalStorageItem("hrm_payroll", initialPayroll)
+  );
+  const [assets, setAssets] = useState<Asset[]>(() => 
+    getLocalStorageItem("hrm_assets", initialAssets)
   );
   const [depts, setDeptsState] = useState<string[]>(() => {
     const saved = localStorage.getItem("hrm_departments");
@@ -313,6 +318,10 @@ export default function App() {
   }, [payroll]);
 
   useEffect(() => {
+    localStorage.setItem("hrm_assets", JSON.stringify(assets));
+  }, [assets]);
+
+  useEffect(() => {
     localStorage.setItem("hrm_prefix_active_tab", activeTab);
   }, [activeTab]);
 
@@ -460,6 +469,14 @@ export default function App() {
             setPayroll={setPayroll}
           />
         );
+      case "assets":
+        return (
+          <AssetManagement 
+            employees={employees} 
+            assets={assets} 
+            setAssets={setAssets} 
+          />
+        );
       default:
         return (
           <div className="text-center text-slate-400 py-20 font-medium">
@@ -500,6 +517,8 @@ export default function App() {
           setContracts={setContracts}
           payroll={payroll}
           setPayroll={setPayroll}
+          assets={assets}
+          setAssets={setAssets}
           depts={depts}
           setDepts={setDepts}
           theme={theme}

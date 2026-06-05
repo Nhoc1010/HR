@@ -104,3 +104,18 @@ export interface Payroll {
   status: "Đã thanh toán" | "Chờ duyệt" | "Đang tính toán";
 }
 
+export interface Asset {
+  id: string;
+  code: string;
+  name: string;
+  type: "Laptop/PC" | "Màn hình" | "Thiết bị mạng" | "Thiết bị di động" | "Phụ kiện văn phòng" | "Khác";
+  status: "Sẵn sàng" | "Đang cấp phát" | "Đang bảo trì" | "Đã thanh lý";
+  assignedTo?: string; // Employee ID
+  assignedName?: string; // Employee Name
+  specs: string; // Hardware Configuration specs
+  value: number; // Value in VND
+  purchaseDate: string; // Date of asset purchase (YYYY-MM-DD)
+  warrantyMonths: number; // Warranty periods in months
+  location: string; // Office, desk location
+}
+
